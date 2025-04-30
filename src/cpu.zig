@@ -1,25 +1,5 @@
 const mem = @import("memory.zig");
 
-// pub const OP_TYPES = [_]u2{
-//     // 1  2  1  4  5  6  7  8  9  A  B  C  D  E  F
-//     0, 2, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 1, 0, // 0
-//     0, 2, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, // 1
-//     1, 2, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, // 2
-//     1, 2, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, // 1
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 4
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 5
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 6
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 7
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 8
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 9
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // A
-//     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // B
-//     0, 0, 2, 2, 2, 0, 1, 0, 0, 0, 2, 0, 2, 2, 1, 0, // C
-//     0, 0, 2, 0, 2, 0, 1, 0, 0, 0, 2, 0, 2, 0, 1, 0, // D
-//     1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0, 0, 0, 1, 0, // E
-//     1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0, 0, 0, 1, 0, // F
-// };
-
 pub const OP_CYCLES = [_]u8{
     // 1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, // 0
@@ -60,6 +40,13 @@ pub const OP_CB_CYCLES = [_]u8{
     2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // F
 };
 
+const Flag = enum(u8) {
+    c = 4,
+    h = 5,
+    n = 6,
+    z = 7,
+};
+
 const Cpu = struct {
     // CPU Registers
 
@@ -89,8 +76,48 @@ const Cpu = struct {
                 self.b = hi;
                 self.c = lo;
             },
+            // INC r8
+            0x04 => {
+                self.incrementRegister(&self.b);
+            },
+            0x14 => {
+                self.incrementRegister(&self.d);
+            },
+            0x24 => {
+                self.incrementRegister(&self.h);
+            },
         }
 
         return opCycles;
+    }
+
+    fn setFlag(self: *Cpu, flag: Flag) void {
+        self.f |= 1 << @intFromEnum(flag);
+    }
+
+    fn clearFlag(self: *Cpu, flag: Flag) void {
+        self.f &= ~(1 << @intFromEnum(flag));
+    }
+
+    fn incrementRegister(self: *Cpu, register: *u8) void {
+        // check for half carry
+
+        const halfCarry = (((register.* & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        register.* += 1;
+
+        if (register.* == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
     }
 };
