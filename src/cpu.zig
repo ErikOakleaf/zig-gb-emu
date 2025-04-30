@@ -67,6 +67,7 @@ const Cpu = struct {
         const opCycles = OP_CYCLES[opcode];
 
         switch (opcode) {
+            // NOP
             0x00 => {},
             // LD r16n16
             0x01 => {
@@ -81,6 +82,20 @@ const Cpu = struct {
             0x31 => {
                 self.loadRegisterSP();
             },
+            // INC r16
+            // TODO check if "self." is needed here or if it can just be called as the function name since it is in this namespace
+            0x03 => {
+                self.incrementRegister16(&self.b, &self.c);
+            },
+            0x13 => {
+                self.incrementRegister16(&self.d, &self.e);
+            },
+            0x23 => {
+                self.incrementRegister16(&self.h, &self.l);
+            },
+            0x33 => {
+                self.incrementRegisterSP();
+            },
             // INC r8
             0x04 => {
                 self.incrementRegister8(&self.b);
@@ -90,6 +105,22 @@ const Cpu = struct {
             },
             0x24 => {
                 self.incrementRegister8(&self.h);
+            },
+            0x34 => {
+                self.incrementRegisterHL();
+            },
+            // DEC r8
+            0x05 => {
+                self.decrementRegister8(&self.b);
+            },
+            0x15 => {
+                self.decrementRegister8(&self.d);
+            },
+            0x25 => {
+                self.decrementRegister8(&self.h);
+            },
+            0x35 => {
+                self.decrementRegisterHL();
             },
         }
 
@@ -123,6 +154,23 @@ const Cpu = struct {
         self.sp = value;
     }
 
+    fn incrementRegister16(hiRegister: *u8, loRegister: *u8) void {
+        // load 8 bit registers as 16 bit int
+        var newValue: u16 = @as(u16, hiRegister.* << 8) | loRegister.*;
+        newValue += 1;
+
+        // store as two 8 bit ints in registers
+        const hiValue: u8 = @intCast(newValue >> 8);
+        const loValue: u8 = @intCast(newValue);
+
+        hiRegister.* = hiValue;
+        loRegister.* = loValue;
+    }
+
+    fn incrementRegisterSP(self: *Cpu) void {
+        self.sp += 1;
+    }
+
     fn incrementRegister8(self: *Cpu, register: *u8) void {
         // check for half carry
 
@@ -143,5 +191,81 @@ const Cpu = struct {
         }
 
         self.clearFlag(Flag.n);
+    }
+
+    fn incrementRegisterHL(self: *Cpu) void {
+        const address: u16 = @as(u16, self.h << 8) | self.l;
+        var value = self.memory.read(address);
+
+        // check for half carry
+
+        const halfCarry = (((value & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        value += 1;
+
+        if (value == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+
+        self.memory.write(address, value);
+    }
+
+    fn decrementRegister8(self: *Cpu, register: *u8) void {
+        // check for half carry
+
+        const halfCarry = (register.* & 0x0F) - (1 & 0x0F) < 0;
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        register.* -= 1;
+
+        if (register.* == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.setFlag(Flag.n);
+    }
+
+    fn decrementRegisterHL(self: *Cpu) void {
+        const address: u16 = @as(u16, self.h << 8) | self.l;
+        var value = self.memory.read(address);
+
+        // check for half carry
+
+        const halfCarry = (value & 0x0F) - (1 & 0x0F) < 0;
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        value -= 1;
+
+        if (value == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.setFlag(Flag.n);
+
+        self.memory.write(address, value);
     }
 };
