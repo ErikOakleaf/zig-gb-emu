@@ -68,23 +68,28 @@ const Cpu = struct {
 
         switch (opcode) {
             0x00 => {},
+            // LD r16n16
             0x01 => {
-                const lo: u8 = self.memory.read(self.pc);
-                const hi: u8 = self.memory.read(self.pc + 1);
-                self.pc += 2;
-
-                self.b = hi;
-                self.c = lo;
+                self.loadRegister16(&self.b, &self.c);
+            },
+            0x11 => {
+                self.loadRegister16(&self.d, &self.e);
+            },
+            0x21 => {
+                self.loadRegister16(&self.h, &self.l);
+            },
+            0x31 => {
+                self.loadRegisterSP();
             },
             // INC r8
             0x04 => {
-                self.incrementRegister(&self.b);
+                self.incrementRegister8(&self.b);
             },
             0x14 => {
-                self.incrementRegister(&self.d);
+                self.incrementRegister8(&self.d);
             },
             0x24 => {
-                self.incrementRegister(&self.h);
+                self.incrementRegister8(&self.h);
             },
         }
 
@@ -99,7 +104,26 @@ const Cpu = struct {
         self.f &= ~(1 << @intFromEnum(flag));
     }
 
-    fn incrementRegister(self: *Cpu, register: *u8) void {
+    fn loadRegister16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
+        const lo: u8 = self.memory.read(self.pc);
+        const hi: u8 = self.memory.read(self.pc + 1);
+        self.pc += 2;
+
+        hiRegister.* = hi;
+        loRegister.* = lo;
+    }
+
+    fn loadRegisterSP(self: *Cpu) void {
+        const lo: u8 = self.memory.read(self.pc);
+        const hi: u8 = self.memory.read(self.pc + 1);
+        self.pc += 2;
+
+        const value: u16 = (@as(u16, hi) << 8) | lo;
+
+        self.sp = value;
+    }
+
+    fn incrementRegister8(self: *Cpu, register: *u8) void {
         // check for half carry
 
         const halfCarry = (((register.* & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
