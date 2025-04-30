@@ -1,4 +1,4 @@
-const Memory = struct {
+pub const Memory = struct {
     rom: [0x8000]u8,
     vram: [0x2000]u8,
     eram: [0x2000]u8,
