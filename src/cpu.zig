@@ -47,7 +47,7 @@ const Flag = enum(u8) {
     z = 7,
 };
 
-const Cpu = struct {
+pub const Cpu = struct {
     // CPU Registers
 
     a: u8,
