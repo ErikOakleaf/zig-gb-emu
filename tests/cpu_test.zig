@@ -1,15 +1,34 @@
 const std = @import("std");
-const expect = std.testing.expect;
+const fs = std.fs;
+const heap = std.heap;
+
 const Cpu = @import("cpu").Cpu;
 
-var cpu: Cpu = undefined;
+const vectors_path = "/tests/vectors/cpu";
 
-test "init test" {
-    cpu.a = 5;
-    try expect(cpu.a == 5);
-}
+pub fn cpuTest() !void {
+    // var cpu: Cpu = undefined;
 
-test "init false test" {
-    cpu.a = 5;
-    try expect(cpu.a == 3);
+    var gpa = heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var allocator = gpa.allocator();
+
+    var dir = try fs.cwd().openDir("tests/vectors/cpu", .{ .iterate = true });
+    defer dir.close();
+
+    var iter = dir.iterate();
+    while (try iter.next()) |file| {
+        std.debug.print("File: {s}\n", .{file.name});
+
+        var fileHandle = try dir.openFile(file.name, .{});
+        defer fileHandle.close();
+
+        const fileSize = try fileHandle.getEndPos();
+        const contentBuffer = try allocator.alloc(u8, fileSize);
+        defer allocator.free(contentBuffer);
+
+        _ = try fileHandle.readAll(contentBuffer);
+        std.debug.print("--- Content of {s} ---\n{s}\n----------------------\n", .{ file.name, contentBuffer[0..] });
+    }
 }

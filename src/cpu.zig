@@ -62,6 +62,14 @@ pub const Cpu = struct {
     pc: u16,
     memory: *mem.Memory,
 
+    pub fn tick(self: *Cpu) u8 {
+        const opcode: u8 = self.memory.read(self.pc);
+        self.pc += 1;
+
+        const cycles = executeOpcode(opcode);
+        return cycles;
+    }
+
     // executes opcode returns the ammount of cycles
     fn executeOpcode(self: *Cpu, opcode: u8) u8 {
         const opCycles = OP_CYCLES[opcode];

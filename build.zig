@@ -21,21 +21,17 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_exe.step);
 
     // tests
-    const cpu_test = b.addTest(.{
-        .name = "cpu_test",
-        .root_source_file = b.path("tests/cpu_test.zig"),
+    const tests = b.addExecutable(.{
+        .name = "tests",
+        .root_source_file = b.path("tests/all_tests.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const cpu_module = b.createModule(.{ .root_source_file = b.path("src/cpu.zig") });
+    b.installArtifact(tests);
 
-    cpu_test.root_module.addImport("cpu", cpu_module);
+    const run_tests = b.addRunArtifact(tests);
 
-    b.installArtifact(cpu_test);
-
-    const run_test = b.addRunArtifact(cpu_test);
-
-    const run_test_step = b.step("test", "run tests");
-    run_test_step.dependOn(&run_test.step);
+    const run_tests_step = b.step("test", "run tests");
+    run_tests_step.dependOn(&run_tests.step);
 }
