@@ -1,8 +1,27 @@
 const std = @import("std");
 const fs = std.fs;
 const heap = std.heap;
+const json = std.json;
 
 const Cpu = @import("cpu").Cpu;
+
+// create structs for coresponding json
+
+const CpuState = struct {
+    a: u8,
+    b: u8,
+    c: u8,
+    d: u8,
+    e: u8,
+    f: u8,
+    h: u8,
+    l: u8,
+    pc: u16,
+    sp: u16,
+    ram: []struct { u16, u16 },
+};
+
+const TestVector = struct { name: []const u8, initial: CpuState, final: CpuState, cycles: []struct { u16, u8, []const u8 } };
 
 const vectors_path = "/tests/vectors/cpu";
 
@@ -29,6 +48,12 @@ pub fn cpuTest() !void {
         defer allocator.free(contentBuffer);
 
         _ = try fileHandle.readAll(contentBuffer);
-        std.debug.print("--- Content of {s} ---\n{s}\n----------------------\n", .{ file.name, contentBuffer[0..] });
+
+        const parsedTestVectors = try json.parseFromSlice([]TestVector, allocator, contentBuffer[0..], .{});
+        defer parsedTestVectors.deinit();
+
+        for (parsedTestVectors.value) |vector| {
+            std.debug.print("vector name: {s}\n", .{vector.name});
+        }
     }
 }
