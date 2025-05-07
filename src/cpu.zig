@@ -80,6 +80,11 @@ pub const Cpu = struct {
         self.sp = 0;
     }
 
+    pub fn deinit(self: *Cpu, allocator: *std.mem.Allocator) void {
+        allocator.destroy(self.memory);
+        self.memory = undefined;
+    }
+
     pub fn tick(self: *Cpu) u8 {
         const opcode: u8 = self.memory.read(self.pc);
         self.pc += 1;
@@ -109,7 +114,6 @@ pub const Cpu = struct {
                 self.loadRegisterSP();
             },
             // INC r16
-            // TODO check if "self." is needed here or if it can just be called as the function name since it is in this namespace
             0x03 => {
                 incrementRegister16(&self.b, &self.c);
             },
