@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const Memory = struct {
     rom: [0x8000]u8,
     vram: [0x2000]u8,
@@ -41,7 +43,6 @@ pub const Memory = struct {
             0xFFFF => {
                 return self.ie;
             },
-            else => {},
         }
     }
 
@@ -77,5 +78,18 @@ pub const Memory = struct {
             },
             else => {},
         }
+    }
+
+    pub fn init(self: *Memory) void {
+        // set every byte of each array to 0
+
+        @memset(self.rom[0..], 0);
+        @memset(self.vram[0..], 0);
+        @memset(self.eram[0..], 0);
+        @memset(self.wram[0..], 0);
+        @memset(self.oam[0..], 0);
+        @memset(self.io[0..], 0);
+        @memset(self.hram[0..], 0);
+        self.ie = 0;
     }
 };

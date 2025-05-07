@@ -1,3 +1,4 @@
+const std = @import("std");
 const mem = @import("memory.zig");
 
 pub const OP_CYCLES = [_]u8{
@@ -62,11 +63,28 @@ pub const Cpu = struct {
     pc: u16,
     memory: *mem.Memory,
 
+    pub fn init(self: *Cpu, allocator: *std.mem.Allocator) !void {
+        const memPtr = try allocator.create(mem.Memory);
+        memPtr.*.init();
+        self.memory = memPtr;
+
+        self.a = 0;
+        self.f = 0;
+        self.b = 0;
+        self.c = 0;
+        self.d = 0;
+        self.e = 0;
+        self.h = 0;
+        self.l = 0;
+        self.pc = 0;
+        self.sp = 0;
+    }
+
     pub fn tick(self: *Cpu) u8 {
         const opcode: u8 = self.memory.read(self.pc);
         self.pc += 1;
 
-        const cycles = executeOpcode(opcode);
+        const cycles = self.executeOpcode(opcode);
         return cycles;
     }
 
@@ -93,13 +111,13 @@ pub const Cpu = struct {
             // INC r16
             // TODO check if "self." is needed here or if it can just be called as the function name since it is in this namespace
             0x03 => {
-                self.incrementRegister16(&self.b, &self.c);
+                incrementRegister16(&self.b, &self.c);
             },
             0x13 => {
-                self.incrementRegister16(&self.d, &self.e);
+                incrementRegister16(&self.d, &self.e);
             },
             0x23 => {
-                self.incrementRegister16(&self.h, &self.l);
+                incrementRegister16(&self.h, &self.l);
             },
             0x33 => {
                 self.incrementRegisterSP();
@@ -130,17 +148,44 @@ pub const Cpu = struct {
             0x35 => {
                 self.decrementRegisterHL();
             },
+            else => {},
         }
 
         return opCycles;
     }
 
     fn setFlag(self: *Cpu, flag: Flag) void {
-        self.f |= 1 << @intFromEnum(flag);
+        switch (flag) {
+            Flag.c => {
+                self.f |= 1 << 4;
+            },
+            Flag.h => {
+                self.f |= 1 << 5;
+            },
+            Flag.n => {
+                self.f |= 1 << 6;
+            },
+            Flag.z => {
+                self.f |= 1 << 7;
+            },
+        }
     }
 
     fn clearFlag(self: *Cpu, flag: Flag) void {
-        self.f &= ~(1 << @intFromEnum(flag));
+        switch (flag) {
+            Flag.c => {
+                self.f &= ~(@as(u8, 1) << 4);
+            },
+            Flag.h => {
+                self.f &= ~(@as(u8, 1) << 5);
+            },
+            Flag.n => {
+                self.f &= ~(@as(u8, 1) << 6);
+            },
+            Flag.z => {
+                self.f &= ~(@as(u8, 1) << 7);
+            },
+        }
     }
 
     fn loadRegister16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
@@ -164,7 +209,7 @@ pub const Cpu = struct {
 
     fn incrementRegister16(hiRegister: *u8, loRegister: *u8) void {
         // load 8 bit registers as 16 bit int
-        var newValue: u16 = @as(u16, hiRegister.* << 8) | loRegister.*;
+        var newValue: u16 = @as(u16, hiRegister.*) << 8 | loRegister.*;
         newValue += 1;
 
         // store as two 8 bit ints in registers
@@ -202,7 +247,7 @@ pub const Cpu = struct {
     }
 
     fn incrementRegisterHL(self: *Cpu) void {
-        const address: u16 = @as(u16, self.h << 8) | self.l;
+        const address: u16 = @as(u16, self.h) << 8 | self.l;
         var value = self.memory.read(address);
 
         // check for half carry
@@ -251,7 +296,7 @@ pub const Cpu = struct {
     }
 
     fn decrementRegisterHL(self: *Cpu) void {
-        const address: u16 = @as(u16, self.h << 8) | self.l;
+        const address: u16 = @as(u16, self.h) << 8 | self.l;
         var value = self.memory.read(address);
 
         // check for half carry

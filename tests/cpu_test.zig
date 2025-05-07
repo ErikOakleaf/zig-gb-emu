@@ -18,7 +18,7 @@ const CpuState = struct {
     l: u8,
     pc: u16,
     sp: u16,
-    ram: []struct { u16, u16 },
+    ram: []const [2]u16,
 };
 
 const TestVector = struct { name: []const u8, initial: CpuState, final: CpuState, cycles: []struct { u16, u8, []const u8 } };
@@ -26,12 +26,12 @@ const TestVector = struct { name: []const u8, initial: CpuState, final: CpuState
 const vectors_path = "/tests/vectors/cpu";
 
 pub fn cpuTest() !void {
-    // var cpu: Cpu = undefined;
-
     var gpa = heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
     var allocator = gpa.allocator();
+
+    var cpu: Cpu = undefined; // alloc CPU uninitialized
 
     var dir = try fs.cwd().openDir("tests/vectors/cpu", .{ .iterate = true });
     defer dir.close();
@@ -53,7 +53,103 @@ pub fn cpuTest() !void {
         defer parsedTestVectors.deinit();
 
         for (parsedTestVectors.value) |vector| {
-            std.debug.print("vector name: {s}\n", .{vector.name});
+            try cpu.init(&allocator);
+
+            var testFail: bool = false;
+
+            cpu.a = vector.initial.a;
+            cpu.b = vector.initial.b;
+            cpu.c = vector.initial.c;
+            cpu.d = vector.initial.d;
+            cpu.e = vector.initial.e;
+            cpu.f = vector.initial.f;
+            cpu.h = vector.initial.h;
+            cpu.l = vector.initial.l;
+            cpu.pc = vector.initial.pc;
+            cpu.sp = vector.initial.sp;
+
+            _ = cpu.tick();
+
+            for (vector.initial.ram) |mem| {
+                const address: u16 = mem[0];
+                const value: u8 = @intCast(mem[1]);
+
+                switch (address) {
+                    0x00...0x7FFF => {
+                        cpu.memory.rom[address] = value;
+                    },
+                    else => {
+                        cpu.memory.write(address, value);
+                    },
+                }
+            }
+
+            if (cpu.a != vector.final.a) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.a, vector.final.a });
+            }
+
+            if (cpu.b != vector.final.b) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.b, vector.final.b });
+            }
+
+            if (cpu.c != vector.final.c) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.c, vector.final.c });
+            }
+
+            if (cpu.d != vector.final.d) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.d, vector.final.d });
+            }
+
+            if (cpu.e != vector.final.e) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.e, vector.final.e });
+            }
+
+            if (cpu.f != vector.final.f) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.f, vector.final.f });
+            }
+
+            if (cpu.h != vector.final.h) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.h, vector.final.h });
+            }
+
+            if (cpu.l != vector.final.l) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.l, vector.final.l });
+            }
+
+            if (cpu.pc != vector.final.pc) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.pc, vector.final.pc });
+            }
+
+            if (cpu.sp != vector.final.sp) {
+                testFail = true;
+                std.debug.print("register a: {d} is not: {d}\n", .{ cpu.sp, vector.final.sp });
+            }
+
+            for (vector.final.ram) |mem| {
+                const address: u16 = mem[0];
+                const value: u8 = @intCast(mem[1]);
+                const cpuValue: u8 = cpu.memory.read(address);
+
+                if (cpu.memory.read(address) != value) {
+                    testFail = true;
+                    std.debug.print("memory at {d}: {d} is not {d}\n", .{ address, cpuValue, value });
+                }
+            }
+
+            if (testFail) {
+                std.debug.print("test {s} failed\n", .{vector.name});
+            } else {
+                std.debug.print("test {s} succeded\n", .{vector.name});
+            }
         }
     }
 }

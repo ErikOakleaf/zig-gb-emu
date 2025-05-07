@@ -28,6 +28,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const cpu = b.createModule(.{ .root_source_file = .{ .cwd_relative = "src/cpu.zig" } });
+    const mem = b.createModule(.{ .root_source_file = .{ .cwd_relative = "src/memory.zig" } });
+    tests.root_module.addImport("cpu", cpu);
+    tests.root_module.addImport("mem", mem);
+
     b.installArtifact(tests);
 
     const run_tests = b.addRunArtifact(tests);
