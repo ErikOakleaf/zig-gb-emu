@@ -87,6 +87,9 @@ pub const Cpu = struct {
 
     pub fn tick(self: *Cpu) u8 {
         const opcode: u8 = self.memory.read(self.pc);
+
+        // std.debug.print("reading opcode: {d}, at memory: {d}\n", .{ opcode, self.pc });
+
         self.pc += 1;
 
         const cycles = self.executeOpcode(opcode);
@@ -96,6 +99,8 @@ pub const Cpu = struct {
     // executes opcode returns the ammount of cycles
     fn executeOpcode(self: *Cpu, opcode: u8) u8 {
         const opCycles = OP_CYCLES[opcode];
+
+        // std.debug.print("executing opcode: {d}\n", .{opcode});
 
         switch (opcode) {
             // NOP
@@ -217,8 +222,8 @@ pub const Cpu = struct {
         newValue += 1;
 
         // store as two 8 bit ints in registers
-        const hiValue: u8 = @intCast(newValue >> 8);
-        const loValue: u8 = @intCast(newValue);
+        const hiValue: u8 = @truncate(newValue >> 8);
+        const loValue: u8 = @truncate(newValue);
 
         hiRegister.* = hiValue;
         loRegister.* = loValue;

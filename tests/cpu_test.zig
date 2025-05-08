@@ -76,7 +76,7 @@ pub fn cpuTest() !void {
             }
         }
 
-        std.debug.print("File: {s}\n", .{file.name});
+        std.debug.print("----------------------\nFile: {s}\n----------------------\n", .{file.name});
 
         var fileHandle = try dir.openFile(file.name, .{});
         defer fileHandle.close();
@@ -103,10 +103,11 @@ pub fn cpuTest() !void {
             cpu.f = vector.initial.f;
             cpu.h = vector.initial.h;
             cpu.l = vector.initial.l;
-            cpu.pc = vector.initial.pc;
+            cpu.pc = vector.initial.pc - 1;
             cpu.sp = vector.initial.sp;
 
-            _ = cpu.tick();
+            // bool for when memory is writing to unavliable area in test vector
+            var invalidMemory = false;
 
             for (vector.initial.ram) |mem| {
                 const address: u16 = mem[0];
@@ -116,11 +117,25 @@ pub fn cpuTest() !void {
                     0x00...0x7FFF => {
                         cpu.memory.rom[address] = value;
                     },
+                    0xFEA0...0xFEFF => {
+                        invalidMemory = true;
+                    },
                     else => {
                         cpu.memory.write(address, value);
                     },
                 }
             }
+
+            if (invalidMemory) {
+                cpu.deinit(&allocator);
+                continue;
+            }
+
+            _ = cpu.tick();
+
+            // dummy‐prefetch step to match the vector’s last cycle
+            _ = cpu.memory.read(cpu.pc);
+            cpu.pc += 1;
 
             if (cpu.a != vector.final.a) {
                 testFail = true;
