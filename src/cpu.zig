@@ -378,6 +378,200 @@ pub const Cpu = struct {
             0x3E => {
                 self.LD_r8_n8(&self.a);
             },
+            // LD r8, r8
+            0x40 => {
+                LD_r8_r8(&self.b, &self.b);
+            },
+            0x41 => {
+                LD_r8_r8(&self.b, &self.c);
+            },
+            0x42 => {
+                LD_r8_r8(&self.b, &self.d);
+            },
+            0x43 => {
+                LD_r8_r8(&self.b, &self.e);
+            },
+            0x44 => {
+                LD_r8_r8(&self.b, &self.h);
+            },
+            0x45 => {
+                LD_r8_r8(&self.b, &self.l);
+            },
+            0x46 => {
+                self.LD_r8_HL(&self.b);
+            },
+            0x47 => {
+                LD_r8_r8(&self.b, &self.a);
+            },
+            0x48 => {
+                LD_r8_r8(&self.c, &self.b);
+            },
+            0x49 => {
+                LD_r8_r8(&self.c, &self.c);
+            },
+            0x4A => {
+                LD_r8_r8(&self.c, &self.d);
+            },
+            0x4B => {
+                LD_r8_r8(&self.c, &self.e);
+            },
+            0x4C => {
+                LD_r8_r8(&self.c, &self.h);
+            },
+            0x4D => {
+                LD_r8_r8(&self.c, &self.l);
+            },
+            0x4E => {
+                self.LD_r8_HL(&self.c);
+            },
+            0x4F => {
+                LD_r8_r8(&self.c, &self.a);
+            },
+            0x50 => {
+                LD_r8_r8(&self.d, &self.b);
+            },
+            0x51 => {
+                LD_r8_r8(&self.d, &self.c);
+            },
+            0x52 => {
+                LD_r8_r8(&self.d, &self.d);
+            },
+            0x53 => {
+                LD_r8_r8(&self.d, &self.e);
+            },
+            0x54 => {
+                LD_r8_r8(&self.d, &self.h);
+            },
+            0x55 => {
+                LD_r8_r8(&self.d, &self.l);
+            },
+            0x56 => {
+                self.LD_r8_HL(&self.d);
+            },
+            0x57 => {
+                LD_r8_r8(&self.d, &self.a);
+            },
+            0x58 => {
+                LD_r8_r8(&self.e, &self.b);
+            },
+            0x59 => {
+                LD_r8_r8(&self.e, &self.c);
+            },
+            0x5A => {
+                LD_r8_r8(&self.e, &self.d);
+            },
+            0x5B => {
+                LD_r8_r8(&self.e, &self.e);
+            },
+            0x5C => {
+                LD_r8_r8(&self.e, &self.h);
+            },
+            0x5D => {
+                LD_r8_r8(&self.e, &self.l);
+            },
+            0x5E => {
+                self.LD_r8_HL(&self.e);
+            },
+            0x5F => {
+                LD_r8_r8(&self.e, &self.a);
+            },
+            0x60 => {
+                LD_r8_r8(&self.h, &self.b);
+            },
+            0x61 => {
+                LD_r8_r8(&self.h, &self.c);
+            },
+            0x62 => {
+                LD_r8_r8(&self.h, &self.d);
+            },
+            0x63 => {
+                LD_r8_r8(&self.h, &self.e);
+            },
+            0x64 => {
+                LD_r8_r8(&self.h, &self.h);
+            },
+            0x65 => {
+                LD_r8_r8(&self.h, &self.l);
+            },
+            0x66 => {
+                self.LD_r8_HL(&self.h);
+            },
+            0x67 => {
+                LD_r8_r8(&self.h, &self.a);
+            },
+            0x68 => {
+                LD_r8_r8(&self.l, &self.b);
+            },
+            0x69 => {
+                LD_r8_r8(&self.l, &self.c);
+            },
+            0x6a => {
+                LD_r8_r8(&self.l, &self.d);
+            },
+            0x6b => {
+                LD_r8_r8(&self.l, &self.e);
+            },
+            0x6c => {
+                LD_r8_r8(&self.l, &self.h);
+            },
+            0x6d => {
+                LD_r8_r8(&self.l, &self.l);
+            },
+            0x6e => {
+                self.LD_r8_HL(&self.l);
+            },
+            0x6f => {
+                LD_r8_r8(&self.l, &self.a);
+            },
+            // LD HL r8
+            0x70 => {
+                self.LD_HL_r8(&self.b);
+            },
+            0x71 => {
+                self.LD_HL_r8(&self.c);
+            },
+            0x72 => {
+                self.LD_HL_r8(&self.d);
+            },
+            0x73 => {
+                self.LD_HL_r8(&self.e);
+            },
+            0x74 => {
+                self.LD_HL_r8(&self.h);
+            },
+            0x75 => {
+                self.LD_HL_r8(&self.l);
+            },
+            0x76 => {
+                // TODO implement halt here
+            },
+            0x77 => {
+                self.LD_HL_r8(&self.a);
+            },
+            0x78 => {
+                LD_r8_r8(&self.a, &self.b);
+            },
+            0x79 => {
+                LD_r8_r8(&self.a, &self.c);
+            },
+            0x7a => {
+                LD_r8_r8(&self.a, &self.d);
+            },
+            0x7b => {
+                LD_r8_r8(&self.a, &self.e);
+            },
+            0x7c => {
+                LD_r8_r8(&self.a, &self.h);
+            },
+            0x7d => {
+                LD_r8_r8(&self.a, &self.l);
+            },
+            0x7e => {
+                self.LD_r8_HL(&self.a);
+            },
+            0x7f => {
+                LD_r8_r8(&self.a, &self.a);
+            },
             else => {},
         }
 
@@ -460,6 +654,20 @@ pub const Cpu = struct {
         const value: u8 = self.memory.read(self.pc);
         self.pc += 1;
         register.* = value;
+    }
+
+    fn LD_r8_r8(loadRegister: *u8, copyRegister: *u8) void {
+        loadRegister.* = copyRegister.*;
+    }
+
+    fn LD_r8_HL(self: *Cpu, register: *u8) void {
+        const address = combine8BitValues(self.h, self.l);
+        register.* = self.memory.read(address);
+    }
+
+    fn LD_HL_r8(self: *Cpu, register: *u8) void {
+        const address = combine8BitValues(self.h, self.l);
+        self.memory.write(address, register.*);
     }
 
     fn LD_r16_A(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
