@@ -175,6 +175,21 @@ pub const Cpu = struct {
 
                 self.memory.write(address, value);
             },
+            0x0C => {
+                self.incrementRegister8(&self.c);
+            },
+
+            0x1C => {
+                self.incrementRegister8(&self.e);
+            },
+
+            0x2C => {
+                self.incrementRegister8(&self.l);
+            },
+
+            0x3C => {
+                self.incrementRegister8(&self.a);
+            },
             // DEC r8
             0x05 => {
                 self.decrementRegister8(&self.b);
@@ -211,6 +226,22 @@ pub const Cpu = struct {
 
                 self.memory.write(address, value);
             },
+            0x0D => {
+                self.decrementRegister8(&self.c);
+            },
+
+            0x1D => {
+                self.decrementRegister8(&self.e);
+            },
+
+            0x2D => {
+                self.decrementRegister8(&self.l);
+            },
+
+            0x3D => {
+                self.decrementRegister8(&self.a);
+            },
+
             // LD r8n8
             0x06 => {
                 self.loadRegister8(&self.b);
@@ -370,7 +401,7 @@ pub const Cpu = struct {
             self.clearFlag(Flag.h);
         }
 
-        register.* += 1;
+        register.* = register.* +% 1;
 
         if (register.* == 0) {
             self.setFlag(Flag.z);
@@ -390,7 +421,7 @@ pub const Cpu = struct {
             self.clearFlag(Flag.h);
         }
 
-        register.* -= 1;
+        register.* = register.* -% 1;
 
         if (register.* == 0) {
             self.setFlag(Flag.z);
