@@ -155,9 +155,7 @@ pub const Cpu = struct {
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
                 var value = self.memory.read(address);
 
-                // check for half carry
-
-                const halfCarry = (((value & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
+                const halfCarry = checkHalfCarry8(value, 1);
 
                 if (halfCarry) {
                     self.setFlag(Flag.h);
@@ -193,9 +191,7 @@ pub const Cpu = struct {
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
                 var value = self.memory.read(address);
 
-                // check for half carry
-
-                const halfCarry = (value & 0x0F) == 0;
+                const halfCarry = checkHalfBorrow8(value, 1);
 
                 if (halfCarry) {
                     self.setFlag(Flag.h);
@@ -231,6 +227,43 @@ pub const Cpu = struct {
                 self.pc += 1;
 
                 self.memory.write(address, value);
+            },
+            0x09 => {
+                self.addHL16(self.b, self.c);
+            },
+            0x19 => {
+                self.addHL16(self.d, self.e);
+            },
+            0x29 => {
+                self.addHL16(self.h, self.l);
+            },
+            0x39 => {
+                // add hl sp
+                var hl = combine8BitRegisters(self.h, self.l);
+
+                const halfCarry = checkHalfCarry16(hl, self.sp);
+                if (halfCarry) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                const carry = checkCarry16(hl, self.sp);
+                if (carry) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                hl = hl +% self.sp;
+
+                // store as two 8 bit ints in registers
+                const decomposedValues = decompose16BitValue(hl);
+
+                self.h = decomposedValues[0];
+                self.l = decomposedValues[1];
+
+                self.clearFlag(Flag.n);
             },
             else => {},
         }
@@ -272,6 +305,35 @@ pub const Cpu = struct {
         }
     }
 
+    fn combine8BitRegisters(hiRegister: u8, loRegister: u8) u16 {
+        const newValue: u16 = @as(u16, hiRegister) << 8 | loRegister;
+        return newValue;
+    }
+
+    fn decompose16BitValue(value: u16) [2]u8 {
+        // store as two 8 bit ints in registers
+        const hiValue: u8 = @truncate(value >> 8);
+        const loValue: u8 = @truncate(value);
+
+        return .{ hiValue, loValue };
+    }
+
+    fn checkHalfCarry16(a: u16, b: u16) bool {
+        return ((a & 0x0FFF) + (b & 0x0FFF)) > 0x0FFF;
+    }
+
+    fn checkCarry16(a: u16, b: u16) bool {
+        return (@as(u32, a) + @as(u32, b)) > 0xFFFF;
+    }
+
+    fn checkHalfCarry8(a: u8, b: u8) bool {
+        return ((a & 0x0F) + (b & 0x0F)) & 0x10 == 0x10;
+    }
+
+    fn checkHalfBorrow8(a: u8, b: u8) bool {
+        return (a & 0x0F) < (b & 0x0F);
+    }
+
     fn loadRegister16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const lo: u8 = self.memory.read(self.pc);
         const hi: u8 = self.memory.read(self.pc + 1);
@@ -289,21 +351,18 @@ pub const Cpu = struct {
 
     fn incrementRegister16(hiRegister: *u8, loRegister: *u8) void {
         // load 8 bit registers as 16 bit int
-        var newValue: u16 = @as(u16, hiRegister.*) << 8 | loRegister.*;
+        var newValue: u16 = combine8BitRegisters(hiRegister.*, loRegister.*);
         newValue += 1;
 
         // store as two 8 bit ints in registers
-        const hiValue: u8 = @truncate(newValue >> 8);
-        const loValue: u8 = @truncate(newValue);
+        const decomposedValues = decompose16BitValue(newValue);
 
-        hiRegister.* = hiValue;
-        loRegister.* = loValue;
+        hiRegister.* = decomposedValues[0];
+        loRegister.* = decomposedValues[1];
     }
 
     fn incrementRegister8(self: *Cpu, register: *u8) void {
-        // check for half carry
-
-        const halfCarry = (((register.* & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
+        const halfCarry = checkHalfCarry8(register.*, 1);
 
         if (halfCarry) {
             self.setFlag(Flag.h);
@@ -323,9 +382,7 @@ pub const Cpu = struct {
     }
 
     fn decrementRegister8(self: *Cpu, register: *u8) void {
-        // check for half carry
-
-        const halfCarry = (register.* & 0x0F) == 0;
+        const halfCarry = checkHalfBorrow8(register.*, 1);
 
         if (halfCarry) {
             self.setFlag(Flag.h);
@@ -342,5 +399,35 @@ pub const Cpu = struct {
         }
 
         self.setFlag(Flag.n);
+    }
+
+    fn addHL16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
+        // load 8 bit registers as 16 bit int
+        var hl: u16 = combine8BitRegisters(self.h, self.l);
+        const valueToAdd: u16 = combine8BitRegisters(hiRegister, loRegister);
+
+        const halfCarry = checkHalfCarry16(hl, valueToAdd);
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        const carry = checkCarry16(hl, valueToAdd);
+        if (carry) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        hl = hl +% valueToAdd;
+
+        // store as two 8 bit ints in registers
+        const decomposedValues = decompose16BitValue(hl);
+
+        self.h = decomposedValues[0];
+        self.l = decomposedValues[1];
+
+        self.clearFlag(Flag.n);
     }
 };
