@@ -285,7 +285,7 @@ pub const Cpu = struct {
     fn decrementRegister8(self: *Cpu, register: *u8) void {
         // check for half carry
 
-        const halfCarry = (register.* & 0x0F) - (1 & 0x0F) < 0;
+        const halfCarry = (register.* & 0x0F) == 0;
 
         if (halfCarry) {
             self.setFlag(Flag.h);
@@ -310,7 +310,7 @@ pub const Cpu = struct {
 
         // check for half carry
 
-        const halfCarry = (value & 0x0F) - (1 & 0x0F) < 0;
+        const halfCarry = (value & 0x0F) == 0;
 
         if (halfCarry) {
             self.setFlag(Flag.h);
