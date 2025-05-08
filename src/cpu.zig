@@ -285,18 +285,6 @@ pub const Cpu = struct {
 
                 self.memory.write(address, value);
             },
-            0x0E => {
-                self.LD_r8_n8(&self.c);
-            },
-            0x1E => {
-                self.LD_r8_n8(&self.e);
-            },
-            0x2E => {
-                self.LD_r8_n8(&self.l);
-            },
-            0x3E => {
-                self.LD_r8_n8(&self.a);
-            },
             // ADD HL r16
             0x09 => {
                 self.ADD_HL_r16(self.b, self.c);
@@ -334,6 +322,61 @@ pub const Cpu = struct {
                 self.l = decomposedValues[1];
 
                 self.clearFlag(Flag.n);
+            },
+            // LD A r16
+            0x0A => {
+                self.LD_A_r16(&self.b, &self.c);
+            },
+            0x1A => {
+                self.LD_A_r16(&self.d, &self.e);
+            },
+            0x2A => {
+                self.LD_A_r16(&self.h, &self.l);
+
+                // increment hl
+                var hl = combine8BitValues(self.h, self.l);
+                hl = hl +% 1;
+
+                const decomposedValues = decompose16BitValue(hl);
+                self.h = decomposedValues[0];
+                self.l = decomposedValues[1];
+            },
+            0x3A => {
+                self.LD_A_r16(&self.h, &self.l);
+
+                // decrement hl
+                var hl = combine8BitValues(self.h, self.l);
+                hl = hl -% 1;
+
+                const decomposedValues = decompose16BitValue(hl);
+                self.h = decomposedValues[0];
+                self.l = decomposedValues[1];
+            },
+            // DEC r16
+            0x0B => {
+                DEC_r16(&self.b, &self.c);
+            },
+            0x1B => {
+                DEC_r16(&self.d, &self.e);
+            },
+            0x2B => {
+                DEC_r16(&self.h, &self.l);
+            },
+            0x3B => {
+                self.sp = self.sp -% 1;
+            },
+            // LD r8, n8
+            0x0E => {
+                self.LD_r8_n8(&self.c);
+            },
+            0x1E => {
+                self.LD_r8_n8(&self.e);
+            },
+            0x2E => {
+                self.LD_r8_n8(&self.l);
+            },
+            0x3E => {
+                self.LD_r8_n8(&self.a);
             },
             else => {},
         }
@@ -424,12 +467,25 @@ pub const Cpu = struct {
         self.memory.write(address, self.a);
     }
 
-    fn INC_r16(hiRegister: *u8, loRegister: *u8) void {
-        // load 8 bit registers as 16 bit int
-        var newValue: u16 = combine8BitValues(hiRegister.*, loRegister.*);
-        newValue += 1;
+    fn LD_A_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
+        const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        self.a = self.memory.read(address);
+    }
 
-        // store as two 8 bit ints in registers
+    fn INC_r16(hiRegister: *u8, loRegister: *u8) void {
+        var newValue: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        newValue = newValue +% 1;
+
+        const decomposedValues = decompose16BitValue(newValue);
+
+        hiRegister.* = decomposedValues[0];
+        loRegister.* = decomposedValues[1];
+    }
+
+    fn DEC_r16(hiRegister: *u8, loRegister: *u8) void {
+        var newValue: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        newValue = newValue -% 1;
+
         const decomposedValues = decompose16BitValue(newValue);
 
         hiRegister.* = decomposedValues[0];
