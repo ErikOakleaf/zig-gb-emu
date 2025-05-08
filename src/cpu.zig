@@ -116,7 +116,14 @@ pub const Cpu = struct {
                 self.loadRegister16(&self.h, &self.l);
             },
             0x31 => {
-                self.loadRegisterSP();
+                // load register SP
+                const lo: u8 = self.memory.read(self.pc);
+                const hi: u8 = self.memory.read(self.pc + 1);
+                self.pc += 2;
+
+                const value: u16 = (@as(u16, hi) << 8) | lo;
+
+                self.sp = value;
             },
             // INC r16
             0x03 => {
@@ -129,7 +136,8 @@ pub const Cpu = struct {
                 incrementRegister16(&self.h, &self.l);
             },
             0x33 => {
-                self.incrementRegisterSP();
+                // increment register sp
+                self.sp += 1;
             },
             // INC r8
             0x04 => {
@@ -142,7 +150,32 @@ pub const Cpu = struct {
                 self.incrementRegister8(&self.h);
             },
             0x34 => {
-                self.incrementRegisterHL();
+                // increment register HL
+
+                const address: u16 = @as(u16, self.h) << 8 | self.l;
+                var value = self.memory.read(address);
+
+                // check for half carry
+
+                const halfCarry = (((value & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
+
+                if (halfCarry) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                value += 1;
+
+                if (value == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                self.clearFlag(Flag.n);
+
+                self.memory.write(address, value);
             },
             // DEC r8
             0x05 => {
@@ -155,7 +188,49 @@ pub const Cpu = struct {
                 self.decrementRegister8(&self.h);
             },
             0x35 => {
-                self.decrementRegisterHL();
+                // decrement register HL
+
+                const address: u16 = @as(u16, self.h) << 8 | self.l;
+                var value = self.memory.read(address);
+
+                // check for half carry
+
+                const halfCarry = (value & 0x0F) == 0;
+
+                if (halfCarry) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                value -= 1;
+
+                if (value == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                self.setFlag(Flag.n);
+
+                self.memory.write(address, value);
+            },
+            // LD r8n8
+            0x06 => {
+                self.loadRegister8(&self.b);
+            },
+            0x16 => {
+                self.loadRegister8(&self.d);
+            },
+            0x26 => {
+                self.loadRegister8(&self.h);
+            },
+            0x36 => {
+                const address: u16 = @as(u16, self.h) << 8 | self.l;
+                const value = self.memory.read(self.pc);
+                self.pc += 1;
+
+                self.memory.write(address, value);
             },
             else => {},
         }
@@ -206,14 +281,10 @@ pub const Cpu = struct {
         loRegister.* = lo;
     }
 
-    fn loadRegisterSP(self: *Cpu) void {
-        const lo: u8 = self.memory.read(self.pc);
-        const hi: u8 = self.memory.read(self.pc + 1);
-        self.pc += 2;
-
-        const value: u16 = (@as(u16, hi) << 8) | lo;
-
-        self.sp = value;
+    fn loadRegister8(self: *Cpu, register: *u8) void {
+        const value: u8 = self.memory.read(self.pc);
+        self.pc += 1;
+        register.* = value;
     }
 
     fn incrementRegister16(hiRegister: *u8, loRegister: *u8) void {
@@ -227,10 +298,6 @@ pub const Cpu = struct {
 
         hiRegister.* = hiValue;
         loRegister.* = loValue;
-    }
-
-    fn incrementRegisterSP(self: *Cpu) void {
-        self.sp += 1;
     }
 
     fn incrementRegister8(self: *Cpu, register: *u8) void {
@@ -255,33 +322,6 @@ pub const Cpu = struct {
         self.clearFlag(Flag.n);
     }
 
-    fn incrementRegisterHL(self: *Cpu) void {
-        const address: u16 = @as(u16, self.h) << 8 | self.l;
-        var value = self.memory.read(address);
-
-        // check for half carry
-
-        const halfCarry = (((value & 0x0F) + (1 & 0x0F)) & 0x10) == 0x10;
-
-        if (halfCarry) {
-            self.setFlag(Flag.h);
-        } else {
-            self.clearFlag(Flag.h);
-        }
-
-        value += 1;
-
-        if (value == 0) {
-            self.setFlag(Flag.z);
-        } else {
-            self.clearFlag(Flag.z);
-        }
-
-        self.clearFlag(Flag.n);
-
-        self.memory.write(address, value);
-    }
-
     fn decrementRegister8(self: *Cpu, register: *u8) void {
         // check for half carry
 
@@ -302,32 +342,5 @@ pub const Cpu = struct {
         }
 
         self.setFlag(Flag.n);
-    }
-
-    fn decrementRegisterHL(self: *Cpu) void {
-        const address: u16 = @as(u16, self.h) << 8 | self.l;
-        var value = self.memory.read(address);
-
-        // check for half carry
-
-        const halfCarry = (value & 0x0F) == 0;
-
-        if (halfCarry) {
-            self.setFlag(Flag.h);
-        } else {
-            self.clearFlag(Flag.h);
-        }
-
-        value -= 1;
-
-        if (value == 0) {
-            self.setFlag(Flag.z);
-        } else {
-            self.clearFlag(Flag.z);
-        }
-
-        self.setFlag(Flag.n);
-
-        self.memory.write(address, value);
     }
 };
