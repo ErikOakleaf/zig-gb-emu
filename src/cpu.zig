@@ -105,15 +105,15 @@ pub const Cpu = struct {
         switch (opcode) {
             // NOP
             0x00 => {},
-            // LD r16n16
+            // LD r16, n16
             0x01 => {
-                self.loadRegister16(&self.b, &self.c);
+                self.LD_r16_n16(&self.b, &self.c);
             },
             0x11 => {
-                self.loadRegister16(&self.d, &self.e);
+                self.LD_r16_n16(&self.d, &self.e);
             },
             0x21 => {
-                self.loadRegister16(&self.h, &self.l);
+                self.LD_r16_n16(&self.h, &self.l);
             },
             0x31 => {
                 // load register SP
@@ -125,15 +125,44 @@ pub const Cpu = struct {
 
                 self.sp = value;
             },
+            // LD N16 A
+            0x02 => {
+                self.LD_r16_A(&self.b, &self.c);
+            },
+            0x12 => {
+                self.LD_r16_A(&self.d, &self.e);
+            },
+            0x22 => {
+                self.LD_r16_A(&self.h, &self.l);
+
+                // increment hl
+                var hl = combine8BitValues(self.h, self.l);
+                hl = hl +% 1;
+
+                const decomposedValues = decompose16BitValue(hl);
+                self.h = decomposedValues[0];
+                self.l = decomposedValues[1];
+            },
+            0x32 => {
+                self.LD_r16_A(&self.h, &self.l);
+
+                // decrement hl
+                var hl = combine8BitValues(self.h, self.l);
+                hl = hl -% 1;
+
+                const decomposedValues = decompose16BitValue(hl);
+                self.h = decomposedValues[0];
+                self.l = decomposedValues[1];
+            },
             // INC r16
             0x03 => {
-                incrementRegister16(&self.b, &self.c);
+                INC_r16(&self.b, &self.c);
             },
             0x13 => {
-                incrementRegister16(&self.d, &self.e);
+                INC_r16(&self.d, &self.e);
             },
             0x23 => {
-                incrementRegister16(&self.h, &self.l);
+                INC_r16(&self.h, &self.l);
             },
             0x33 => {
                 // increment register sp
@@ -141,13 +170,13 @@ pub const Cpu = struct {
             },
             // INC r8
             0x04 => {
-                self.incrementRegister8(&self.b);
+                self.INC_r8(&self.b);
             },
             0x14 => {
-                self.incrementRegister8(&self.d);
+                self.INC_r8(&self.d);
             },
             0x24 => {
-                self.incrementRegister8(&self.h);
+                self.INC_r8(&self.h);
             },
             0x34 => {
                 // increment register HL
@@ -176,29 +205,26 @@ pub const Cpu = struct {
                 self.memory.write(address, value);
             },
             0x0C => {
-                self.incrementRegister8(&self.c);
+                self.INC_r8(&self.c);
             },
-
             0x1C => {
-                self.incrementRegister8(&self.e);
+                self.INC_r8(&self.e);
             },
-
             0x2C => {
-                self.incrementRegister8(&self.l);
+                self.INC_r8(&self.l);
             },
-
             0x3C => {
-                self.incrementRegister8(&self.a);
+                self.INC_r8(&self.a);
             },
             // DEC r8
             0x05 => {
-                self.decrementRegister8(&self.b);
+                self.DEC_r8(&self.b);
             },
             0x15 => {
-                self.decrementRegister8(&self.d);
+                self.DEC_r8(&self.d);
             },
             0x25 => {
-                self.decrementRegister8(&self.h);
+                self.DEC_r8(&self.h);
             },
             0x35 => {
                 // decrement register HL
@@ -227,30 +253,30 @@ pub const Cpu = struct {
                 self.memory.write(address, value);
             },
             0x0D => {
-                self.decrementRegister8(&self.c);
+                self.DEC_r8(&self.c);
             },
 
             0x1D => {
-                self.decrementRegister8(&self.e);
+                self.DEC_r8(&self.e);
             },
 
             0x2D => {
-                self.decrementRegister8(&self.l);
+                self.DEC_r8(&self.l);
             },
 
             0x3D => {
-                self.decrementRegister8(&self.a);
+                self.DEC_r8(&self.a);
             },
 
             // LD r8n8
             0x06 => {
-                self.loadRegister8(&self.b);
+                self.LD_r8_n8(&self.b);
             },
             0x16 => {
-                self.loadRegister8(&self.d);
+                self.LD_r8_n8(&self.d);
             },
             0x26 => {
-                self.loadRegister8(&self.h);
+                self.LD_r8_n8(&self.h);
             },
             0x36 => {
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
@@ -259,18 +285,31 @@ pub const Cpu = struct {
 
                 self.memory.write(address, value);
             },
+            0x0E => {
+                self.LD_r8_n8(&self.c);
+            },
+            0x1E => {
+                self.LD_r8_n8(&self.e);
+            },
+            0x2E => {
+                self.LD_r8_n8(&self.l);
+            },
+            0x3E => {
+                self.LD_r8_n8(&self.a);
+            },
+            // ADD HL r16
             0x09 => {
-                self.addHL16(self.b, self.c);
+                self.ADD_HL_r16(self.b, self.c);
             },
             0x19 => {
-                self.addHL16(self.d, self.e);
+                self.ADD_HL_r16(self.d, self.e);
             },
             0x29 => {
-                self.addHL16(self.h, self.l);
+                self.ADD_HL_r16(self.h, self.l);
             },
             0x39 => {
                 // add hl sp
-                var hl = combine8BitRegisters(self.h, self.l);
+                var hl = combine8BitValues(self.h, self.l);
 
                 const halfCarry = checkHalfCarry16(hl, self.sp);
                 if (halfCarry) {
@@ -336,8 +375,8 @@ pub const Cpu = struct {
         }
     }
 
-    fn combine8BitRegisters(hiRegister: u8, loRegister: u8) u16 {
-        const newValue: u16 = @as(u16, hiRegister) << 8 | loRegister;
+    fn combine8BitValues(hiValue: u8, loValue: u8) u16 {
+        const newValue: u16 = @as(u16, hiValue) << 8 | loValue;
         return newValue;
     }
 
@@ -365,7 +404,7 @@ pub const Cpu = struct {
         return (a & 0x0F) < (b & 0x0F);
     }
 
-    fn loadRegister16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
+    fn LD_r16_n16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const lo: u8 = self.memory.read(self.pc);
         const hi: u8 = self.memory.read(self.pc + 1);
         self.pc += 2;
@@ -374,15 +413,20 @@ pub const Cpu = struct {
         loRegister.* = lo;
     }
 
-    fn loadRegister8(self: *Cpu, register: *u8) void {
+    fn LD_r8_n8(self: *Cpu, register: *u8) void {
         const value: u8 = self.memory.read(self.pc);
         self.pc += 1;
         register.* = value;
     }
 
-    fn incrementRegister16(hiRegister: *u8, loRegister: *u8) void {
+    fn LD_r16_A(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
+        const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        self.memory.write(address, self.a);
+    }
+
+    fn INC_r16(hiRegister: *u8, loRegister: *u8) void {
         // load 8 bit registers as 16 bit int
-        var newValue: u16 = combine8BitRegisters(hiRegister.*, loRegister.*);
+        var newValue: u16 = combine8BitValues(hiRegister.*, loRegister.*);
         newValue += 1;
 
         // store as two 8 bit ints in registers
@@ -392,7 +436,7 @@ pub const Cpu = struct {
         loRegister.* = decomposedValues[1];
     }
 
-    fn incrementRegister8(self: *Cpu, register: *u8) void {
+    fn INC_r8(self: *Cpu, register: *u8) void {
         const halfCarry = checkHalfCarry8(register.*, 1);
 
         if (halfCarry) {
@@ -412,7 +456,7 @@ pub const Cpu = struct {
         self.clearFlag(Flag.n);
     }
 
-    fn decrementRegister8(self: *Cpu, register: *u8) void {
+    fn DEC_r8(self: *Cpu, register: *u8) void {
         const halfCarry = checkHalfBorrow8(register.*, 1);
 
         if (halfCarry) {
@@ -432,10 +476,10 @@ pub const Cpu = struct {
         self.setFlag(Flag.n);
     }
 
-    fn addHL16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
+    fn ADD_HL_r16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
         // load 8 bit registers as 16 bit int
-        var hl: u16 = combine8BitRegisters(self.h, self.l);
-        const valueToAdd: u16 = combine8BitRegisters(hiRegister, loRegister);
+        var hl: u16 = combine8BitValues(self.h, self.l);
+        const valueToAdd: u16 = combine8BitValues(hiRegister, loRegister);
 
         const halfCarry = checkHalfCarry16(hl, valueToAdd);
         if (halfCarry) {
