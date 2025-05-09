@@ -595,31 +595,7 @@ pub const Cpu = struct {
 
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-
-                const halfCarry = checkHalfCarry8(self.a, value);
-                const carry = checkCarry8(self.a, value);
-
-                self.a = self.a +% value;
-
-                if (self.a == 0) {
-                    self.setFlag(Flag.z);
-                } else {
-                    self.clearFlag(Flag.z);
-                }
-
-                if (halfCarry) {
-                    self.setFlag(Flag.h);
-                } else {
-                    self.clearFlag(Flag.h);
-                }
-
-                if (carry) {
-                    self.setFlag(Flag.c);
-                } else {
-                    self.clearFlag(Flag.c);
-                }
-
-                self.clearFlag(Flag.n);
+                self.ADD_A_r8(value);
             },
             0x87 => {
                 self.ADD_A_r8(self.a);
@@ -648,32 +624,7 @@ pub const Cpu = struct {
 
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-
-                const carrySet: u8 = self.flagIsSet(Flag.c);
-                const halfCarry = checkHalfCarry8WithCarry(self.a, value, carrySet);
-                const carry = checkCarry8WithCarry(self.a, value, carrySet);
-
-                self.a = self.a +% value +% carrySet;
-
-                if (self.a == 0) {
-                    self.setFlag(Flag.z);
-                } else {
-                    self.clearFlag(Flag.z);
-                }
-
-                if (halfCarry) {
-                    self.setFlag(Flag.h);
-                } else {
-                    self.clearFlag(Flag.h);
-                }
-
-                if (carry) {
-                    self.setFlag(Flag.c);
-                } else {
-                    self.clearFlag(Flag.c);
-                }
-
-                self.clearFlag(Flag.n);
+                self.ADC_A_r8(value);
             },
             0x8F => {
                 self.ADC_A_r8(self.a);
@@ -794,6 +745,64 @@ pub const Cpu = struct {
             0xAF => {
                 self.XOR_A_r8(self.a);
             },
+            0xB0 => {
+                self.OR_A_r8(self.b);
+            },
+            0xB1 => {
+                self.OR_A_r8(self.c);
+            },
+            0xB2 => {
+                self.OR_A_r8(self.d);
+            },
+            0xB3 => {
+                self.OR_A_r8(self.e);
+            },
+            0xB4 => {
+                self.OR_A_r8(self.h);
+            },
+            0xB5 => {
+                self.OR_A_r8(self.l);
+            },
+            0xB6 => {
+                // OR A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+                self.OR_A_r8(value);
+            },
+            0xB7 => {
+                self.OR_A_r8(self.a);
+            },
+            // CP A, r8
+            0xB8 => {
+                self.CP_A_r8(self.b);
+            },
+            0xB9 => {
+                self.CP_A_r8(self.c);
+            },
+            0xBA => {
+                self.CP_A_r8(self.d);
+            },
+            0xBB => {
+                self.CP_A_r8(self.e);
+            },
+            0xBC => {
+                self.CP_A_r8(self.h);
+            },
+            0xBD => {
+                self.CP_A_r8(self.l);
+            },
+            0xBE => {
+                // CP A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+                self.CP_A_r8(value);
+            },
+            0xBF => {
+                self.CP_A_r8(self.a);
+            },
+
             else => {},
         }
 
@@ -1197,5 +1206,48 @@ pub const Cpu = struct {
         self.clearFlag(Flag.n);
         self.clearFlag(Flag.h);
         self.clearFlag(Flag.c);
+    }
+
+    fn OR_A_r8(self: *Cpu, register: u8) void {
+        self.a |= register;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+        self.clearFlag(Flag.c);
+    }
+
+    fn CP_A_r8(self: *Cpu, register: u8) void {
+        var aCopy = self.a;
+
+        const halfBorrow = checkHalfBorrow8(aCopy, register);
+        const borrow = checkBorrow8(aCopy, register);
+
+        aCopy -%= register;
+
+        if (aCopy == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        if (halfBorrow) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (borrow) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.setFlag(Flag.n);
     }
 };
