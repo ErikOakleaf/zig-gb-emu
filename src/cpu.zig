@@ -679,6 +679,113 @@ pub const Cpu = struct {
             0x8F => {
                 self.ADC_A_r8(self.a);
             },
+            // SUB A, r9
+            0x90 => {
+                self.SUB_A_r8(self.b);
+            },
+            0x91 => {
+                self.SUB_A_r8(self.c);
+            },
+            0x92 => {
+                self.SUB_A_r8(self.d);
+            },
+            0x93 => {
+                self.SUB_A_r8(self.e);
+            },
+            0x94 => {
+                self.SUB_A_r8(self.h);
+            },
+            0x95 => {
+                self.SUB_A_r8(self.l);
+            },
+            0x96 => {
+                // SUB A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+
+                const halfBorrow = checkHalfBorrow8(self.a, value);
+                const borrow = checkBorrow8(self.a, value);
+
+                self.a = self.a -% value;
+
+                if (self.a == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                if (halfBorrow) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                if (borrow) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                self.setFlag(Flag.n);
+            },
+            0x97 => {
+                self.SUB_A_r8(self.a);
+            },
+            // SBC A, r8
+            0x98 => {
+                self.SBC_A_r8(self.b);
+            },
+            0x99 => {
+                self.SBC_A_r8(self.c);
+            },
+            0x9A => {
+                self.SBC_A_r8(self.d);
+            },
+            0x9B => {
+                self.SBC_A_r8(self.e);
+            },
+            0x9C => {
+                self.SBC_A_r8(self.h);
+            },
+            0x9D => {
+                self.SBC_A_r8(self.l);
+            },
+            0x9E => {
+                // SBC A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+
+                const carrySet: u8 = self.flagIsSet(Flag.c);
+                const halfBorrow = checkHalfBorrow8WithCarry(self.a, value, carrySet);
+                const borrow = checkBorrow8WithCarry(self.a, value, carrySet);
+
+                self.a = self.a -% value -% carrySet;
+
+                if (self.a == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                if (halfBorrow) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                if (borrow) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                self.setFlag(Flag.n);
+            },
+            0x9F => {
+                self.SBC_A_r8(self.a);
+            },
             else => {},
         }
 
@@ -793,8 +900,28 @@ pub const Cpu = struct {
         return result > 0xFF;
     }
 
+    fn checkBorrow8(a: u8, b: u8) bool {
+        return b > a;
+    }
+
+    fn checkBorrow8WithCarry(a: u8, b: u8, c: u8) bool {
+        if (a < b) return true;
+        if (a == b and c > 0) return true;
+        return (a -% b) < c;
+    }
+
     fn checkHalfBorrow8(a: u8, b: u8) bool {
         return (a & 0x0F) < (b & 0x0F);
+    }
+
+    fn checkHalfBorrow8WithCarry(a: u8, b: u8, c: u8) bool {
+        const lowerA = a & 0x0F;
+        const lowerB = b & 0x0F;
+        const lowerC = c & 0x0F;
+
+        if (lowerA < lowerB) return true;
+        if (lowerA == lowerB and lowerC > 0) return true;
+        return (lowerA -% lowerB) < lowerC;
     }
 
     // instruction implementation
@@ -879,9 +1006,9 @@ pub const Cpu = struct {
     }
 
     fn DEC_r8(self: *Cpu, register: *u8) void {
-        const halfCarry = checkHalfBorrow8(register.*, 1);
+        const halfBorrow = checkHalfBorrow8(register.*, 1);
 
-        if (halfCarry) {
+        if (halfBorrow) {
             self.setFlag(Flag.h);
         } else {
             self.clearFlag(Flag.h);
@@ -899,7 +1026,6 @@ pub const Cpu = struct {
     }
 
     fn ADD_HL_r16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
-        // load 8 bit registers as 16 bit int
         var hl: u16 = combine8BitValues(self.h, self.l);
         const valueToAdd: u16 = combine8BitValues(hiRegister, loRegister);
 
@@ -919,7 +1045,6 @@ pub const Cpu = struct {
 
         hl = hl +% valueToAdd;
 
-        // store as two 8 bit ints in registers
         const decomposedValues = decompose16BitValue(hl);
 
         self.h = decomposedValues[0];
@@ -981,5 +1106,60 @@ pub const Cpu = struct {
         }
 
         self.clearFlag(Flag.n);
+    }
+
+    fn SUB_A_r8(self: *Cpu, register: u8) void {
+        const halfBorrow = checkHalfBorrow8(self.a, register);
+        const borrow = checkBorrow8(self.a, register);
+
+        self.a = self.a -% register;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        if (halfBorrow) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (borrow) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.setFlag(Flag.n);
+    }
+
+    fn SBC_A_r8(self: *Cpu, register: u8) void {
+        const carrySet: u8 = self.flagIsSet(Flag.c);
+        const halfBorrow = checkHalfBorrow8WithCarry(self.a, register, carrySet);
+        const borrow = checkBorrow8WithCarry(self.a, register, carrySet);
+
+        self.a = self.a -% register -% carrySet;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        if (halfBorrow) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (borrow) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.setFlag(Flag.n);
     }
 };
