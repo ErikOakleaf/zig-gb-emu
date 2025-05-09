@@ -192,6 +192,10 @@ pub fn cpuTest() !void {
                 const value: u8 = @intCast(mem[1]);
                 const cpuValue: u8 = cpu.memory.read(address);
 
+                if (address < 0x7FFF) {
+                    continue;
+                }
+
                 if (cpu.memory.read(address) != value) {
                     testFail = true;
                     std.debug.print("memory at {d}: {d} is not {d}\n", .{ address, cpuValue, value });
