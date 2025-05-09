@@ -572,11 +572,120 @@ pub const Cpu = struct {
             0x7f => {
                 LD_r8_r8(&self.a, &self.a);
             },
+            // ADD A, r8
+            0x80 => {
+                self.ADD_A_r8(self.b);
+            },
+            0x81 => {
+                self.ADD_A_r8(self.c);
+            },
+            0x82 => {
+                self.ADD_A_r8(self.d);
+            },
+            0x83 => {
+                self.ADD_A_r8(self.e);
+            },
+            0x84 => {
+                self.ADD_A_r8(self.h);
+            },
+            0x85 => {
+                self.ADD_A_r8(self.l);
+            },
+            0x86 => {
+                // ADD A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+
+                const halfCarry = checkHalfCarry8(self.a, value);
+                const carry = checkCarry8(self.a, value);
+
+                self.a = self.a +% value;
+
+                if (self.a == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                if (halfCarry) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                if (carry) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                self.clearFlag(Flag.n);
+            },
+            0x87 => {
+                self.ADD_A_r8(self.a);
+            },
+            // ADC A, r8
+            0x88 => {
+                self.ADC_A_r8(self.b);
+            },
+            0x89 => {
+                self.ADC_A_r8(self.c);
+            },
+            0x8A => {
+                self.ADC_A_r8(self.d);
+            },
+            0x8B => {
+                self.ADC_A_r8(self.e);
+            },
+            0x8C => {
+                self.ADC_A_r8(self.h);
+            },
+            0x8D => {
+                self.ADC_A_r8(self.l);
+            },
+            0x8E => {
+                // ADC A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+
+                const carrySet: u8 = self.flagIsSet(Flag.c);
+                const halfCarry = checkHalfCarry8WithCarry(self.a, value, carrySet);
+                const carry = checkCarry8WithCarry(self.a, value, carrySet);
+
+                self.a = self.a +% value +% carrySet;
+
+                if (self.a == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                if (halfCarry) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                if (carry) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                self.clearFlag(Flag.n);
+            },
+            0x8F => {
+                self.ADC_A_r8(self.a);
+            },
             else => {},
         }
 
         return opCycles;
     }
+
+    // Flag functions
 
     fn setFlag(self: *Cpu, flag: Flag) void {
         switch (flag) {
@@ -612,6 +721,39 @@ pub const Cpu = struct {
         }
     }
 
+    fn flagIsSet(self: *Cpu, flag: Flag) u8 {
+        var isSet: bool = false;
+        switch (flag) {
+            Flag.c => {
+                if ((self.f & (1 << 4)) != 0) {
+                    isSet = true;
+                }
+            },
+            Flag.h => {
+                if ((self.f & (1 << 5)) != 0) {
+                    isSet = true;
+                }
+            },
+            Flag.n => {
+                if ((self.f & (1 << 6)) != 0) {
+                    isSet = true;
+                }
+            },
+            Flag.z => {
+                if ((self.f & (1 << 7)) != 0) {
+                    isSet = true;
+                }
+            },
+        }
+        if (isSet) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    // helper functions
+
     fn combine8BitValues(hiValue: u8, loValue: u8) u16 {
         const newValue: u16 = @as(u16, hiValue) << 8 | loValue;
         return newValue;
@@ -637,9 +779,25 @@ pub const Cpu = struct {
         return ((a & 0x0F) + (b & 0x0F)) & 0x10 == 0x10;
     }
 
+    fn checkHalfCarry8WithCarry(a: u8, b: u8, c: u8) bool {
+        return ((a & 0x0F) + (b & 0x0F) + (c & 0x0F)) & 0x10 == 0x10;
+    }
+
+    fn checkCarry8(a: u8, b: u8) bool {
+        const result: u16 = @as(u16, a) + @as(u16, b);
+        return result > 0xFF;
+    }
+
+    fn checkCarry8WithCarry(a: u8, b: u8, c: u8) bool {
+        const result: u16 = @as(u16, a) + @as(u16, b) + @as(u16, c);
+        return result > 0xFF;
+    }
+
     fn checkHalfBorrow8(a: u8, b: u8) bool {
         return (a & 0x0F) < (b & 0x0F);
     }
+
+    // instruction implementation
 
     fn LD_r16_n16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const lo: u8 = self.memory.read(self.pc);
@@ -766,6 +924,61 @@ pub const Cpu = struct {
 
         self.h = decomposedValues[0];
         self.l = decomposedValues[1];
+
+        self.clearFlag(Flag.n);
+    }
+
+    fn ADD_A_r8(self: *Cpu, register: u8) void {
+        const halfCarry = checkHalfCarry8(self.a, register);
+        const carry = checkCarry8(self.a, register);
+
+        self.a = self.a +% register;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (carry) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.clearFlag(Flag.n);
+    }
+
+    fn ADC_A_r8(self: *Cpu, register: u8) void {
+        const carrySet: u8 = self.flagIsSet(Flag.c);
+        const halfCarry = checkHalfCarry8WithCarry(self.a, register, carrySet);
+        const carry = checkCarry8WithCarry(self.a, register, carrySet);
+
+        self.a = self.a +% register +% carrySet;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (carry) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
 
         self.clearFlag(Flag.n);
     }
