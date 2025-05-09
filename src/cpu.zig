@@ -802,7 +802,38 @@ pub const Cpu = struct {
             0xBF => {
                 self.CP_A_r8(self.a);
             },
-
+            // JR cc
+            0x20 => {
+                if (self.flagIsSet(Flag.z) == 0) {
+                    self.JR();
+                } else {
+                    self.pc += 1;
+                }
+            },
+            0x30 => {
+                if (self.flagIsSet(Flag.c) == 0) {
+                    self.JR();
+                } else {
+                    self.pc += 1;
+                }
+            },
+            0x18 => {
+                self.JR();
+            },
+            0x28 => {
+                if (self.flagIsSet(Flag.z) == 1) {
+                    self.JR();
+                } else {
+                    self.pc += 1;
+                }
+            },
+            0x38 => {
+                if (self.flagIsSet(Flag.c) == 1) {
+                    self.JR();
+                } else {
+                    self.pc += 1;
+                }
+            },
             else => {},
         }
 
@@ -1249,5 +1280,17 @@ pub const Cpu = struct {
         }
 
         self.setFlag(Flag.n);
+    }
+
+    fn JR(self: *Cpu) void {
+        const offset: i8 = @bitCast(self.memory.read(self.pc));
+        self.pc += 1;
+
+        var pcCopy: i32 = @intCast(self.pc);
+        pcCopy += offset;
+
+        const newPc: u16 = @intCast(pcCopy);
+
+        self.pc = newPc;
     }
 };
