@@ -135,7 +135,6 @@ pub const Cpu = struct {
             0x22 => {
                 self.LD_r16_A(&self.h, &self.l);
 
-                // increment hl
                 var hl = combine8BitValues(self.h, self.l);
                 hl = hl +% 1;
 
@@ -181,7 +180,7 @@ pub const Cpu = struct {
             0x34 => {
                 // increment register HL
 
-                const address: u16 = @as(u16, self.h) << 8 | self.l;
+                const address: u16 = combine8BitValues(self.h, self.l);
                 var value = self.memory.read(address);
 
                 const halfCarry = checkHalfCarry8(value, 1);
@@ -703,31 +702,7 @@ pub const Cpu = struct {
 
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-
-                const halfBorrow = checkHalfBorrow8(self.a, value);
-                const borrow = checkBorrow8(self.a, value);
-
-                self.a = self.a -% value;
-
-                if (self.a == 0) {
-                    self.setFlag(Flag.z);
-                } else {
-                    self.clearFlag(Flag.z);
-                }
-
-                if (halfBorrow) {
-                    self.setFlag(Flag.h);
-                } else {
-                    self.clearFlag(Flag.h);
-                }
-
-                if (borrow) {
-                    self.setFlag(Flag.c);
-                } else {
-                    self.clearFlag(Flag.c);
-                }
-
-                self.setFlag(Flag.n);
+                self.SUB_A_r8(value);
             },
             0x97 => {
                 self.SUB_A_r8(self.a);
@@ -756,35 +731,68 @@ pub const Cpu = struct {
 
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-
-                const carrySet: u8 = self.flagIsSet(Flag.c);
-                const halfBorrow = checkHalfBorrow8WithCarry(self.a, value, carrySet);
-                const borrow = checkBorrow8WithCarry(self.a, value, carrySet);
-
-                self.a = self.a -% value -% carrySet;
-
-                if (self.a == 0) {
-                    self.setFlag(Flag.z);
-                } else {
-                    self.clearFlag(Flag.z);
-                }
-
-                if (halfBorrow) {
-                    self.setFlag(Flag.h);
-                } else {
-                    self.clearFlag(Flag.h);
-                }
-
-                if (borrow) {
-                    self.setFlag(Flag.c);
-                } else {
-                    self.clearFlag(Flag.c);
-                }
-
-                self.setFlag(Flag.n);
+                self.SBC_A_r8(value);
             },
             0x9F => {
                 self.SBC_A_r8(self.a);
+            },
+            // AND A, r8
+            0xA0 => {
+                self.AND_A_r8(self.b);
+            },
+            0xA1 => {
+                self.AND_A_r8(self.c);
+            },
+            0xA2 => {
+                self.AND_A_r8(self.d);
+            },
+            0xA3 => {
+                self.AND_A_r8(self.e);
+            },
+            0xA4 => {
+                self.AND_A_r8(self.h);
+            },
+            0xA5 => {
+                self.AND_A_r8(self.l);
+            },
+            0xA6 => {
+                // AND A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+                self.AND_A_r8(value);
+            },
+            0xA7 => {
+                self.AND_A_r8(self.a);
+            },
+            // XOR A, r8
+            0xA8 => {
+                self.XOR_A_r8(self.b);
+            },
+            0xA9 => {
+                self.XOR_A_r8(self.c);
+            },
+            0xAA => {
+                self.XOR_A_r8(self.d);
+            },
+            0xAB => {
+                self.XOR_A_r8(self.e);
+            },
+            0xAC => {
+                self.XOR_A_r8(self.h);
+            },
+            0xAD => {
+                self.XOR_A_r8(self.l);
+            },
+            0xAE => {
+                // XOR A, [HL]
+
+                const address = combine8BitValues(self.h, self.l);
+                const value = self.memory.read(address);
+                self.XOR_A_r8(value);
+            },
+            0xAF => {
+                self.XOR_A_r8(self.a);
             },
             else => {},
         }
@@ -1161,5 +1169,33 @@ pub const Cpu = struct {
         }
 
         self.setFlag(Flag.n);
+    }
+
+    fn AND_A_r8(self: *Cpu, register: u8) void {
+        self.a &= register;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.setFlag(Flag.h);
+        self.clearFlag(Flag.c);
+    }
+
+    fn XOR_A_r8(self: *Cpu, register: u8) void {
+        self.a ^= register;
+
+        if (self.a == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+        self.clearFlag(Flag.c);
     }
 };
