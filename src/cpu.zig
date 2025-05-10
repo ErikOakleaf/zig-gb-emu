@@ -874,6 +874,26 @@ pub const Cpu = struct {
                     self.pc +%= 1;
                 }
             },
+            // POP r16
+            0xC1 => {
+                self.POP_r16(&self.b, &self.c);
+            },
+            0xD1 => {
+                self.POP_r16(&self.d, &self.e);
+            },
+            0xE1 => {
+                self.POP_r16(&self.h, &self.l);
+            },
+            0xF1 => {
+                // POP AF
+                const lo: u8 = self.memory.read(self.sp);
+                const hi: u8 = self.memory.read(self.sp + 1);
+                self.sp +%= 2;
+
+                self.a = hi;
+                // lowest 3 bits always stay at zero in the flag register
+                self.f = lo & 0xF0;
+            },
             // JP n16
             0xC2 => {
                 if (self.flagIsSet(Flag.z) == 0) {
@@ -911,26 +931,6 @@ pub const Cpu = struct {
                 const hl: u16 = combine8BitValues(self.h, self.l);
                 self.pc = hl;
             },
-            // POP r16
-            0xC1 => {
-                self.POP_r16(&self.b, &self.c);
-            },
-            0xD1 => {
-                self.POP_r16(&self.d, &self.e);
-            },
-            0xE1 => {
-                self.POP_r16(&self.h, &self.l);
-            },
-            0xF1 => {
-                // POP AF
-                const lo: u8 = self.memory.read(self.sp);
-                const hi: u8 = self.memory.read(self.sp + 1);
-                self.sp +%= 2;
-
-                self.a = hi;
-                // lowest 3 bits always stay at zero in the flag register
-                self.f = lo & 0xF0;
-            },
             // PUSH r16
             0xC5 => {
                 self.PUSH_r16(self.b, self.c);
@@ -943,6 +943,30 @@ pub const Cpu = struct {
             },
             0xF5 => {
                 self.PUSH_r16(self.a, self.f);
+            },
+            // RET cc
+            0xC0 => {
+                if (self.flagIsSet(Flag.z) == 0) {
+                    self.RET();
+                }
+            },
+            0xD0 => {
+                if (self.flagIsSet(Flag.c) == 0) {
+                    self.RET();
+                }
+            },
+            0xC8 => {
+                if (self.flagIsSet(Flag.z) == 1) {
+                    self.RET();
+                }
+            },
+            0xC9 => {
+                self.RET();
+            },
+            0xD8 => {
+                if (self.flagIsSet(Flag.c) == 1) {
+                    self.RET();
+                }
             },
             else => {},
         }
@@ -1434,5 +1458,15 @@ pub const Cpu = struct {
         self.memory.write(self.sp, hiRegister);
         self.sp -%= 1;
         self.memory.write(self.sp, loRegister);
+    }
+
+    fn RET(self: *Cpu) void {
+        const lo: u8 = self.memory.read(self.sp);
+        const hi: u8 = self.memory.read(self.sp + 1);
+        self.sp +%= 2;
+
+        const address = combine8BitValues(hi, lo);
+
+        self.pc = address;
     }
 };
