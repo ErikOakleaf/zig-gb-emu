@@ -90,7 +90,7 @@ pub const Cpu = struct {
 
         // std.debug.print("reading opcode: {d}, at memory: {d}\n", .{ opcode, self.pc });
 
-        self.pc += 1;
+        self.pc +%= 1;
 
         const cycles = self.executeOpcode(opcode);
         return cycles;
@@ -119,7 +119,7 @@ pub const Cpu = struct {
                 // load register SP
                 const lo: u8 = self.memory.read(self.pc);
                 const hi: u8 = self.memory.read(self.pc + 1);
-                self.pc += 2;
+                self.pc +%= 2;
 
                 const value: u16 = (@as(u16, hi) << 8) | lo;
 
@@ -165,7 +165,7 @@ pub const Cpu = struct {
             },
             0x33 => {
                 // increment register sp
-                self.sp += 1;
+                self.sp +%= 1;
             },
             // INC r8
             0x04 => {
@@ -280,7 +280,7 @@ pub const Cpu = struct {
             0x36 => {
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
                 const value = self.memory.read(self.pc);
-                self.pc += 1;
+                self.pc +%= 1;
 
                 self.memory.write(address, value);
             },
@@ -807,14 +807,14 @@ pub const Cpu = struct {
                 if (self.flagIsSet(Flag.z) == 0) {
                     self.JR();
                 } else {
-                    self.pc += 1;
+                    self.pc +%= 1;
                 }
             },
             0x30 => {
                 if (self.flagIsSet(Flag.c) == 0) {
                     self.JR();
                 } else {
-                    self.pc += 1;
+                    self.pc +%= 1;
                 }
             },
             0x18 => {
@@ -824,14 +824,14 @@ pub const Cpu = struct {
                 if (self.flagIsSet(Flag.z) == 1) {
                     self.JR();
                 } else {
-                    self.pc += 1;
+                    self.pc +%= 1;
                 }
             },
             0x38 => {
                 if (self.flagIsSet(Flag.c) == 1) {
                     self.JR();
                 } else {
-                    self.pc += 1;
+                    self.pc +%= 1;
                 }
             },
             // JP n16
@@ -839,34 +839,54 @@ pub const Cpu = struct {
                 if (self.flagIsSet(Flag.z) == 0) {
                     self.JP_n16();
                 } else {
-                    self.pc += 2;
+                    self.pc +%= 2;
                 }
             },
             0xD2 => {
                 if (self.flagIsSet(Flag.c) == 0) {
                     self.JP_n16();
                 } else {
-                    self.pc += 2;
+                    self.pc +%= 2;
                 }
             },
             0xCA => {
                 if (self.flagIsSet(Flag.z) == 1) {
                     self.JP_n16();
                 } else {
-                    self.pc += 2;
+                    self.pc +%= 2;
                 }
             },
             0xDA => {
                 if (self.flagIsSet(Flag.c) == 1) {
                     self.JP_n16();
                 } else {
-                    self.pc += 2;
+                    self.pc +%= 2;
                 }
             },
             0xE9 => {
                 // JP HL
                 const hl: u16 = combine8BitValues(self.h, self.l);
                 self.pc = hl;
+            },
+            // POP r16
+            0xC1 => {
+                self.POP_r16(&self.b, &self.c);
+            },
+            0xD1 => {
+                self.POP_r16(&self.d, &self.e);
+            },
+            0xE1 => {
+                self.POP_r16(&self.h, &self.l);
+            },
+            0xF1 => {
+                // POP AF
+                const lo: u8 = self.memory.read(self.sp);
+                const hi: u8 = self.memory.read(self.sp + 1);
+                self.sp +%= 2;
+
+                self.a = hi;
+                // lowest 3 bits always stay at zero in the flag register
+                self.f = lo & 0xF0;
             },
             else => {},
         }
@@ -1011,7 +1031,7 @@ pub const Cpu = struct {
     fn LD_r16_n16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const lo: u8 = self.memory.read(self.pc);
         const hi: u8 = self.memory.read(self.pc + 1);
-        self.pc += 2;
+        self.pc +%= 2;
 
         hiRegister.* = hi;
         loRegister.* = lo;
@@ -1019,7 +1039,7 @@ pub const Cpu = struct {
 
     fn LD_r8_n8(self: *Cpu, register: *u8) void {
         const value: u8 = self.memory.read(self.pc);
-        self.pc += 1;
+        self.pc +%= 1;
         register.* = value;
     }
 
@@ -1318,7 +1338,7 @@ pub const Cpu = struct {
 
     fn JR(self: *Cpu) void {
         const offset: i8 = @bitCast(self.memory.read(self.pc));
-        self.pc += 1;
+        self.pc +%= 1;
 
         var pcCopy: i32 = @intCast(self.pc);
         pcCopy += offset;
@@ -1334,5 +1354,14 @@ pub const Cpu = struct {
         const address = combine8BitValues(hi, lo);
 
         self.pc = address;
+    }
+
+    fn POP_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
+        const lo: u8 = self.memory.read(self.sp);
+        const hi: u8 = self.memory.read(self.sp + 1);
+        self.sp +%= 2;
+
+        hiRegister.* = hi;
+        loRegister.* = lo;
     }
 };
