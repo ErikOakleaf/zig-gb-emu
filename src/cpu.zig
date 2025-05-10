@@ -1053,6 +1053,34 @@ pub const Cpu = struct {
                     self.RET();
                 }
             },
+            0xCE => {
+                // ADC A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.ADC_A_r8(value);
+            },
+            0xDE => {
+                // SBC A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.SBC_A_r8(value);
+            },
+            0xEE => {
+                // XOR A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.XOR_A_r8(value);
+            },
+            0xFE => {
+                // CP A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.CP_A_r8(value);
+            },
             else => {},
         }
 
