@@ -976,6 +976,34 @@ pub const Cpu = struct {
             0xF5 => {
                 self.PUSH_r16(self.a, self.f);
             },
+            0xC6 => {
+                // ADD A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.ADD_A_r8(value);
+            },
+            0xD6 => {
+                // SUB A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.SUB_A_r8(value);
+            },
+            0xE6 => {
+                // ADD A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.AND_A_r8(value);
+            },
+            0xF6 => {
+                // ADD A, n8
+                const value = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.OR_A_r8(value);
+            },
             // RET cc
             0xC0 => {
                 if (self.flagIsSet(Flag.z) == 0) {
