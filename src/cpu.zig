@@ -931,6 +931,19 @@ pub const Cpu = struct {
                 // lowest 3 bits always stay at zero in the flag register
                 self.f = lo & 0xF0;
             },
+            // PUSH r16
+            0xC5 => {
+                self.PUSH_r16(self.b, self.c);
+            },
+            0xD5 => {
+                self.PUSH_r16(self.d, self.e);
+            },
+            0xE5 => {
+                self.PUSH_r16(self.h, self.l);
+            },
+            0xF5 => {
+                self.PUSH_r16(self.a, self.f);
+            },
             else => {},
         }
 
@@ -1414,5 +1427,12 @@ pub const Cpu = struct {
 
         hiRegister.* = hi;
         loRegister.* = lo;
+    }
+
+    fn PUSH_r16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
+        self.sp -%= 1;
+        self.memory.write(self.sp, hiRegister);
+        self.sp -%= 1;
+        self.memory.write(self.sp, loRegister);
     }
 };
