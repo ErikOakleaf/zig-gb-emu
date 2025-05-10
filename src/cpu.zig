@@ -834,6 +834,40 @@ pub const Cpu = struct {
                     self.pc += 1;
                 }
             },
+            // JP n16
+            0xC2 => {
+                if (self.flagIsSet(Flag.z) == 0) {
+                    self.JP_n16();
+                } else {
+                    self.pc += 2;
+                }
+            },
+            0xD2 => {
+                if (self.flagIsSet(Flag.c) == 0) {
+                    self.JP_n16();
+                } else {
+                    self.pc += 2;
+                }
+            },
+            0xCA => {
+                if (self.flagIsSet(Flag.z) == 1) {
+                    self.JP_n16();
+                } else {
+                    self.pc += 2;
+                }
+            },
+            0xDA => {
+                if (self.flagIsSet(Flag.c) == 1) {
+                    self.JP_n16();
+                } else {
+                    self.pc += 2;
+                }
+            },
+            0xE9 => {
+                // JP HL
+                const hl: u16 = combine8BitValues(self.h, self.l);
+                self.pc = hl;
+            },
             else => {},
         }
 
@@ -1292,5 +1326,13 @@ pub const Cpu = struct {
         const newPc: u16 = @intCast(pcCopy);
 
         self.pc = newPc;
+    }
+
+    fn JP_n16(self: *Cpu) void {
+        const lo: u8 = self.memory.read(self.pc);
+        const hi: u8 = self.memory.read(self.pc + 1);
+        const address = combine8BitValues(hi, lo);
+
+        self.pc = address;
     }
 };
