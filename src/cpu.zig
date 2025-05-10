@@ -173,6 +173,26 @@ pub const Cpu = struct {
 
                 self.LD_n16_A(address);
             },
+            // LD A, n16
+            0xF0 => {
+                const value: u16 = @intCast(self.memory.read(self.pc));
+                self.pc +%= 1;
+                const address = value +% 0xFF00;
+                self.LD_A_n16(address);
+            },
+            0xF2 => {
+                const address: u16 = @as(u16, self.c) +% 0xFF00;
+                self.LD_A_n16(address);
+            },
+            0xFA => {
+                const lo: u8 = self.memory.read(self.pc);
+                const hi: u8 = self.memory.read(self.pc + 1);
+                self.pc +%= 2;
+
+                const address = combine8BitValues(hi, lo);
+
+                self.LD_A_n16(address);
+            },
             // INC r16
             0x03 => {
                 INC_r16(&self.b, &self.c);
@@ -1091,6 +1111,10 @@ pub const Cpu = struct {
 
     fn LD_A_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        self.a = self.memory.read(address);
+    }
+
+    fn LD_A_n16(self: *Cpu, address: u16) void {
         self.a = self.memory.read(address);
     }
 
