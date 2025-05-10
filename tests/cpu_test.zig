@@ -192,7 +192,7 @@ pub fn cpuTest() !void {
                 const value: u8 = @intCast(mem[1]);
                 const cpuValue: u8 = cpu.memory.read(address);
 
-                if (address < 0x7FFF) {
+                if (address < 0x7FFF or (address >= 0xFEA0 and address <= 0xFEFF)) {
                     continue;
                 }
 

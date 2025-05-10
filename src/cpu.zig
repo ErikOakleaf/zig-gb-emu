@@ -125,7 +125,7 @@ pub const Cpu = struct {
 
                 self.sp = value;
             },
-            // LD N16 A
+            // LD r16, A
             0x02 => {
                 self.LD_r16_A(&self.b, &self.c);
             },
@@ -152,6 +152,26 @@ pub const Cpu = struct {
                 const decomposedValues = decompose16BitValue(hl);
                 self.h = decomposedValues[0];
                 self.l = decomposedValues[1];
+            },
+            // LD n16, A
+            0xE0 => {
+                const value: u16 = @intCast(self.memory.read(self.pc));
+                self.pc +%= 1;
+                const address = value +% 0xFF00;
+                self.LD_n16_A(address);
+            },
+            0xE2 => {
+                const address: u16 = @as(u16, self.c) +% 0xFF00;
+                self.LD_n16_A(address);
+            },
+            0xEA => {
+                const lo: u8 = self.memory.read(self.pc);
+                const hi: u8 = self.memory.read(self.pc + 1);
+                self.pc +%= 2;
+
+                const address = combine8BitValues(hi, lo);
+
+                self.LD_n16_A(address);
             },
             // INC r16
             0x03 => {
@@ -849,6 +869,9 @@ pub const Cpu = struct {
                     self.pc +%= 2;
                 }
             },
+            0xC3 => {
+                self.JP_n16();
+            },
             0xCA => {
                 if (self.flagIsSet(Flag.z) == 1) {
                     self.JP_n16();
@@ -1059,6 +1082,10 @@ pub const Cpu = struct {
 
     fn LD_r16_A(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        self.memory.write(address, self.a);
+    }
+
+    fn LD_n16_A(self: *Cpu, address: u16) void {
         self.memory.write(address, self.a);
     }
 
