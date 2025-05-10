@@ -991,18 +991,43 @@ pub const Cpu = struct {
                 self.SUB_A_r8(value);
             },
             0xE6 => {
-                // ADD A, n8
+                // AND A, n8
                 const value = self.memory.read(self.pc);
                 self.pc +%= 1;
 
                 self.AND_A_r8(value);
             },
             0xF6 => {
-                // ADD A, n8
+                // OR A, n8
                 const value = self.memory.read(self.pc);
                 self.pc +%= 1;
 
                 self.OR_A_r8(value);
+            },
+            // RST
+            0xC7 => {
+                self.RST(0x00);
+            },
+            0xD7 => {
+                self.RST(0x10);
+            },
+            0xE7 => {
+                self.RST(0x20);
+            },
+            0xF7 => {
+                self.RST(0x30);
+            },
+            0xCF => {
+                self.RST(0x08);
+            },
+            0xDF => {
+                self.RST(0x18);
+            },
+            0xEF => {
+                self.RST(0x28);
+            },
+            0xFF => {
+                self.RST(0x38);
             },
             // RET cc
             0xC0 => {
@@ -1544,5 +1569,16 @@ pub const Cpu = struct {
         self.memory.write(self.sp, decomposedPc[1]);
 
         self.pc = address;
+    }
+
+    fn RST(self: *Cpu, vec: u16) void {
+        const decomposedPc = decompose16BitValue(self.pc);
+
+        self.sp -%= 1;
+        self.memory.write(self.sp, decomposedPc[0]);
+        self.sp -%= 1;
+        self.memory.write(self.sp, decomposedPc[1]);
+
+        self.pc = vec;
     }
 };
