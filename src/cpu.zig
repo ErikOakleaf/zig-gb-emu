@@ -931,6 +931,38 @@ pub const Cpu = struct {
                 const hl: u16 = combine8BitValues(self.h, self.l);
                 self.pc = hl;
             },
+            // CALL n16
+            0xC4 => {
+                if (self.flagIsSet(Flag.z) == 0) {
+                    self.CALL_n16();
+                } else {
+                    self.pc +%= 2;
+                }
+            },
+            0xD4 => {
+                if (self.flagIsSet(Flag.c) == 0) {
+                    self.CALL_n16();
+                } else {
+                    self.pc +%= 2;
+                }
+            },
+            0xCC => {
+                if (self.flagIsSet(Flag.z) == 1) {
+                    self.CALL_n16();
+                } else {
+                    self.pc +%= 2;
+                }
+            },
+            0xDC => {
+                if (self.flagIsSet(Flag.c) == 1) {
+                    self.CALL_n16();
+                } else {
+                    self.pc +%= 2;
+                }
+            },
+            0xCD => {
+                self.CALL_n16();
+            },
             // PUSH r16
             0xC5 => {
                 self.PUSH_r16(self.b, self.c);
@@ -1466,6 +1498,22 @@ pub const Cpu = struct {
         self.sp +%= 2;
 
         const address = combine8BitValues(hi, lo);
+
+        self.pc = address;
+    }
+
+    fn CALL_n16(self: *Cpu) void {
+        const lo: u8 = self.memory.read(self.pc);
+        const hi: u8 = self.memory.read(self.pc + 1);
+        const address = combine8BitValues(hi, lo);
+
+        const returnAddress = self.pc +% 2;
+        const decomposedPc = decompose16BitValue(returnAddress);
+
+        self.sp -%= 1;
+        self.memory.write(self.sp, decomposedPc[0]);
+        self.sp -%= 1;
+        self.memory.write(self.sp, decomposedPc[1]);
 
         self.pc = address;
     }
