@@ -1284,6 +1284,35 @@ pub const Cpu = struct {
             0x2F => {
                 self.a = self.SRA(self.a);
             },
+            // SRL r8
+            0x38 => {
+                self.b = self.SRL(self.b);
+            },
+            0x39 => {
+                self.c = self.SRL(self.c);
+            },
+            0x3A => {
+                self.d = self.SRL(self.d);
+            },
+            0x3B => {
+                self.e = self.SRL(self.e);
+            },
+            0x3C => {
+                self.h = self.SRL(self.h);
+            },
+            0x3D => {
+                self.l = self.SRL(self.l);
+            },
+            0x3E => {
+                // SRL [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.SRL(value);
+                self.memory.write(address, value);
+            },
+            0x3F => {
+                self.a = self.SRL(self.a);
+            },
             else => {},
         }
     }
