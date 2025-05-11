@@ -1313,6 +1313,35 @@ pub const Cpu = struct {
             0x3F => {
                 self.a = self.SRL(self.a);
             },
+            // SWAP r8
+            0x30 => {
+                self.b = self.SWAP(self.b);
+            },
+            0x31 => {
+                self.c = self.SWAP(self.c);
+            },
+            0x32 => {
+                self.d = self.SWAP(self.d);
+            },
+            0x33 => {
+                self.e = self.SWAP(self.e);
+            },
+            0x34 => {
+                self.h = self.SWAP(self.h);
+            },
+            0x35 => {
+                self.l = self.SWAP(self.l);
+            },
+            0x36 => {
+                // SWAP [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.SWAP(value);
+                self.memory.write(address, value);
+            },
+            0x37 => {
+                self.a = self.SWAP(self.a);
+            },
             else => {},
         }
     }
@@ -2078,5 +2107,21 @@ pub const Cpu = struct {
         self.clearFlag(Flag.h);
 
         return shiftedValue;
+    }
+
+    fn SWAP(self: *Cpu, value: u8) u8 {
+        const swappedValue: u8 = (value << 4) | (value >> 4);
+
+        if (swappedValue == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.c);
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+
+        return swappedValue;
     }
 };
