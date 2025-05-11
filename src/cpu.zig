@@ -1344,227 +1344,459 @@ pub const Cpu = struct {
             },
             // BIT 0 r8
             0x40 => {
-                self.BIT(0, self.b);
+                self.BIT(self.b, 0);
             },
             0x41 => {
-                self.BIT(0, self.c);
+                self.BIT(self.c, 0);
             },
             0x42 => {
-                self.BIT(0, self.d);
+                self.BIT(self.d, 0);
             },
             0x43 => {
-                self.BIT(0, self.e);
+                self.BIT(self.e, 0);
             },
             0x44 => {
-                self.BIT(0, self.h);
+                self.BIT(self.h, 0);
             },
             0x45 => {
-                self.BIT(0, self.l);
+                self.BIT(self.l, 0);
             },
             0x46 => {
                 // BIT 0 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(0, value);
+                self.BIT(value, 0);
             },
             0x47 => {
-                self.BIT(0, self.a);
+                self.BIT(self.a, 0);
             },
             // BIT 1 r8
             0x48 => {
-                self.BIT(1, self.b);
+                self.BIT(self.b, 1);
             },
             0x49 => {
-                self.BIT(1, self.c);
+                self.BIT(self.c, 1);
             },
             0x4A => {
-                self.BIT(1, self.d);
+                self.BIT(self.d, 1);
             },
             0x4B => {
-                self.BIT(1, self.e);
+                self.BIT(self.e, 1);
             },
             0x4C => {
-                self.BIT(1, self.h);
+                self.BIT(self.h, 1);
             },
             0x4D => {
-                self.BIT(1, self.l);
+                self.BIT(self.l, 1);
             },
             0x4E => {
                 // BIT 1 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(1, value);
+                self.BIT(value, 1);
             },
             0x4F => {
-                self.BIT(1, self.a);
+                self.BIT(self.a, 1);
             },
             // BIT 2 r8
             0x50 => {
-                self.BIT(2, self.b);
+                self.BIT(self.b, 2);
             },
             0x51 => {
-                self.BIT(2, self.c);
+                self.BIT(self.c, 2);
             },
             0x52 => {
-                self.BIT(2, self.d);
+                self.BIT(self.d, 2);
             },
             0x53 => {
-                self.BIT(2, self.e);
+                self.BIT(self.e, 2);
             },
             0x54 => {
-                self.BIT(2, self.h);
+                self.BIT(self.h, 2);
             },
             0x55 => {
-                self.BIT(2, self.l);
+                self.BIT(self.l, 2);
             },
             0x56 => {
                 // BIT 2 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(2, value);
+                self.BIT(value, 2);
             },
             0x57 => {
-                self.BIT(2, self.a);
+                self.BIT(self.a, 2);
             },
             // BIT 3 r8
             0x58 => {
-                self.BIT(3, self.b);
+                self.BIT(self.b, 3);
             },
             0x59 => {
-                self.BIT(3, self.c);
+                self.BIT(self.c, 3);
             },
             0x5A => {
-                self.BIT(3, self.d);
+                self.BIT(self.d, 3);
             },
             0x5B => {
-                self.BIT(3, self.e);
+                self.BIT(self.e, 3);
             },
             0x5C => {
-                self.BIT(3, self.h);
+                self.BIT(self.h, 3);
             },
             0x5D => {
-                self.BIT(3, self.l);
+                self.BIT(self.l, 3);
             },
             0x5E => {
                 // BIT 3 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(3, value);
+                self.BIT(value, 3);
             },
             0x5F => {
-                self.BIT(3, self.a);
+                self.BIT(self.a, 3);
             },
             // BIT 4 r8
             0x60 => {
-                self.BIT(4, self.b);
+                self.BIT(self.b, 4);
             },
             0x61 => {
-                self.BIT(4, self.c);
+                self.BIT(self.c, 4);
             },
             0x62 => {
-                self.BIT(4, self.d);
+                self.BIT(self.d, 4);
             },
             0x63 => {
-                self.BIT(4, self.e);
+                self.BIT(self.e, 4);
             },
             0x64 => {
-                self.BIT(4, self.h);
+                self.BIT(self.h, 4);
             },
             0x65 => {
-                self.BIT(4, self.l);
+                self.BIT(self.l, 4);
             },
             0x66 => {
                 // BIT 4 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(4, value);
+                self.BIT(value, 4);
             },
             0x67 => {
-                self.BIT(4, self.a);
+                self.BIT(self.a, 4);
             },
             // BIT 5 r8
             0x68 => {
-                self.BIT(5, self.b);
+                self.BIT(self.b, 5);
             },
             0x69 => {
-                self.BIT(5, self.c);
+                self.BIT(self.c, 5);
             },
             0x6A => {
-                self.BIT(5, self.d);
+                self.BIT(self.d, 5);
             },
             0x6B => {
-                self.BIT(5, self.e);
+                self.BIT(self.e, 5);
             },
             0x6C => {
-                self.BIT(5, self.h);
+                self.BIT(self.h, 5);
             },
             0x6D => {
-                self.BIT(5, self.l);
+                self.BIT(self.l, 5);
             },
             0x6E => {
                 // BIT 5 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(5, value);
+                self.BIT(value, 5);
             },
             0x6F => {
-                self.BIT(5, self.a);
+                self.BIT(self.a, 5);
             },
             // BIT 6 r8
             0x70 => {
-                self.BIT(6, self.b);
+                self.BIT(self.b, 6);
             },
             0x71 => {
-                self.BIT(6, self.c);
+                self.BIT(self.c, 6);
             },
             0x72 => {
-                self.BIT(6, self.d);
+                self.BIT(self.d, 6);
             },
             0x73 => {
-                self.BIT(6, self.e);
+                self.BIT(self.e, 6);
             },
             0x74 => {
-                self.BIT(6, self.h);
+                self.BIT(self.h, 6);
             },
             0x75 => {
-                self.BIT(6, self.l);
+                self.BIT(self.l, 6);
             },
             0x76 => {
                 // BIT 6 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(6, value);
+                self.BIT(value, 6);
             },
             0x77 => {
-                self.BIT(6, self.a);
+                self.BIT(self.a, 6);
             },
             // BIT 7 r8
             0x78 => {
-                self.BIT(7, self.b);
+                self.BIT(self.b, 7);
             },
             0x79 => {
-                self.BIT(7, self.c);
+                self.BIT(self.c, 7);
             },
             0x7A => {
-                self.BIT(7, self.d);
+                self.BIT(self.d, 7);
             },
             0x7B => {
-                self.BIT(7, self.e);
+                self.BIT(self.e, 7);
             },
             0x7C => {
-                self.BIT(7, self.h);
+                self.BIT(self.h, 7);
             },
             0x7D => {
-                self.BIT(7, self.l);
+                self.BIT(self.l, 7);
             },
             0x7E => {
                 // BIT 7 [HL]
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.memory.read(address);
-                self.BIT(7, value);
+                self.BIT(value, 7);
             },
             0x7F => {
-                self.BIT(7, self.a);
+                self.BIT(self.a, 7);
+            },
+            // RES 0 r8
+            0x80 => {
+                self.b = RES(self.b, 0);
+            },
+            0x81 => {
+                self.c = RES(self.c, 0);
+            },
+            0x82 => {
+                self.d = RES(self.d, 0);
+            },
+            0x83 => {
+                self.e = RES(self.e, 0);
+            },
+            0x84 => {
+                self.h = RES(self.h, 0);
+            },
+            0x85 => {
+                self.l = RES(self.l, 0);
+            },
+            0x86 => {
+                // RES 0 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 0);
+                self.memory.write(address, value);
+            },
+            0x87 => {
+                self.a = RES(self.a, 0);
+            },
+            // RES 1 r8
+            0x88 => {
+                self.b = RES(self.b, 1);
+            },
+            0x89 => {
+                self.c = RES(self.c, 1);
+            },
+            0x8A => {
+                self.d = RES(self.d, 1);
+            },
+            0x8B => {
+                self.e = RES(self.e, 1);
+            },
+            0x8C => {
+                self.h = RES(self.h, 1);
+            },
+            0x8D => {
+                self.l = RES(self.l, 1);
+            },
+            0x8E => {
+                // RES 1 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 1);
+                self.memory.write(address, value);
+            },
+            0x8F => {
+                self.a = RES(self.a, 1);
+            },
+            // RES 2 r8
+            0x90 => {
+                self.b = RES(self.b, 2);
+            },
+            0x91 => {
+                self.c = RES(self.c, 2);
+            },
+            0x92 => {
+                self.d = RES(self.d, 2);
+            },
+            0x93 => {
+                self.e = RES(self.e, 2);
+            },
+            0x94 => {
+                self.h = RES(self.h, 2);
+            },
+            0x95 => {
+                self.l = RES(self.l, 2);
+            },
+            0x96 => {
+                // RES 2 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 2);
+                self.memory.write(address, value);
+            },
+            0x97 => {
+                self.a = RES(self.a, 2);
+            },
+            // RES 1 r8
+            0x98 => {
+                self.b = RES(self.b, 3);
+            },
+            0x99 => {
+                self.c = RES(self.c, 3);
+            },
+            0x9A => {
+                self.d = RES(self.d, 3);
+            },
+            0x9B => {
+                self.e = RES(self.e, 3);
+            },
+            0x9C => {
+                self.h = RES(self.h, 3);
+            },
+            0x9D => {
+                self.l = RES(self.l, 3);
+            },
+            0x9E => {
+                // RES 3 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 3);
+                self.memory.write(address, value);
+            },
+            0x9F => {
+                self.a = RES(self.a, 3);
+            },
+            // RES 4 r8
+            0xA0 => {
+                self.b = RES(self.b, 4);
+            },
+            0xA1 => {
+                self.c = RES(self.c, 4);
+            },
+            0xA2 => {
+                self.d = RES(self.d, 4);
+            },
+            0xA3 => {
+                self.e = RES(self.e, 4);
+            },
+            0xA4 => {
+                self.h = RES(self.h, 4);
+            },
+            0xA5 => {
+                self.l = RES(self.l, 4);
+            },
+            0xA6 => {
+                // RES 4 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 4);
+                self.memory.write(address, value);
+            },
+            0xA7 => {
+                self.a = RES(self.a, 4);
+            },
+            // RES 5 r8
+            0xA8 => {
+                self.b = RES(self.b, 5);
+            },
+            0xA9 => {
+                self.c = RES(self.c, 5);
+            },
+            0xAA => {
+                self.d = RES(self.d, 5);
+            },
+            0xAB => {
+                self.e = RES(self.e, 5);
+            },
+            0xAC => {
+                self.h = RES(self.h, 5);
+            },
+            0xAD => {
+                self.l = RES(self.l, 5);
+            },
+            0xAE => {
+                // RES 5 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 5);
+                self.memory.write(address, value);
+            },
+            0xAF => {
+                self.a = RES(self.a, 5);
+            },
+            // RES 6 r8
+            0xb0 => {
+                self.b = RES(self.b, 6);
+            },
+            0xB1 => {
+                self.c = RES(self.c, 6);
+            },
+            0xB2 => {
+                self.d = RES(self.d, 6);
+            },
+            0xB3 => {
+                self.e = RES(self.e, 6);
+            },
+            0xB4 => {
+                self.h = RES(self.h, 6);
+            },
+            0xB5 => {
+                self.l = RES(self.l, 6);
+            },
+            0xB6 => {
+                // RES 6 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 6);
+                self.memory.write(address, value);
+            },
+            0xB7 => {
+                self.a = RES(self.a, 6);
+            },
+            // RES 9 r8
+            0xB8 => {
+                self.b = RES(self.b, 7);
+            },
+            0xB9 => {
+                self.c = RES(self.c, 7);
+            },
+            0xBA => {
+                self.d = RES(self.d, 7);
+            },
+            0xBB => {
+                self.e = RES(self.e, 7);
+            },
+            0xBC => {
+                self.h = RES(self.h, 7);
+            },
+            0xBD => {
+                self.l = RES(self.l, 7);
+            },
+            0xBE => {
+                // RES 7 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = RES(value, 7);
+                self.memory.write(address, value);
+            },
+            0xBF => {
+                self.a = RES(self.a, 7);
             },
 
             else => {},
@@ -2350,7 +2582,9 @@ pub const Cpu = struct {
         return swappedValue;
     }
 
-    fn BIT(self: *Cpu, bit: u8, value: u8) void {
+    // Bit flag instructions
+
+    fn BIT(self: *Cpu, value: u8, bit: u3) void {
         const bitSet = (value & (math.shl(u8, 1, bit))) != 0;
 
         if (!bitSet) {
@@ -2361,5 +2595,10 @@ pub const Cpu = struct {
 
         self.clearFlag(Flag.n);
         self.setFlag(Flag.h);
+    }
+
+    fn RES(value: u8, bit: u3) u8 {
+        const mask = ~(math.shl(u8, 1, bit));
+        return value & mask;
     }
 };
