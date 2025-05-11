@@ -1798,8 +1798,238 @@ pub const Cpu = struct {
             0xBF => {
                 self.a = RES(self.a, 7);
             },
-
-            else => {},
+            // SET 0 r8
+            0xC0 => {
+                self.b = SET(self.b, 0);
+            },
+            0xC1 => {
+                self.c = SET(self.c, 0);
+            },
+            0xC2 => {
+                self.d = SET(self.d, 0);
+            },
+            0xC3 => {
+                self.e = SET(self.e, 0);
+            },
+            0xC4 => {
+                self.h = SET(self.h, 0);
+            },
+            0xC5 => {
+                self.l = SET(self.l, 0);
+            },
+            0xC6 => {
+                // SET 0 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 0);
+                self.memory.write(address, value);
+            },
+            0xC7 => {
+                self.a = SET(self.a, 0);
+            },
+            // SET 1 r8
+            0xC8 => {
+                self.b = SET(self.b, 1);
+            },
+            0xC9 => {
+                self.c = SET(self.c, 1);
+            },
+            0xCA => {
+                self.d = SET(self.d, 1);
+            },
+            0xCB => {
+                self.e = SET(self.e, 1);
+            },
+            0xCC => {
+                self.h = SET(self.h, 1);
+            },
+            0xCD => {
+                self.l = SET(self.l, 1);
+            },
+            0xCE => {
+                // SET 1 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 1);
+                self.memory.write(address, value);
+            },
+            0xCF => {
+                self.a = SET(self.a, 1);
+            },
+            // SET 2 r8
+            0xD0 => {
+                self.b = SET(self.b, 2);
+            },
+            0xD1 => {
+                self.c = SET(self.c, 2);
+            },
+            0xD2 => {
+                self.d = SET(self.d, 2);
+            },
+            0xD3 => {
+                self.e = SET(self.e, 2);
+            },
+            0xD4 => {
+                self.h = SET(self.h, 2);
+            },
+            0xD5 => {
+                self.l = SET(self.l, 2);
+            },
+            0xD6 => {
+                // SET 2 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 2);
+                self.memory.write(address, value);
+            },
+            0xD7 => {
+                self.a = SET(self.a, 2);
+            },
+            // SET 1 r8
+            0xD8 => {
+                self.b = SET(self.b, 3);
+            },
+            0xD9 => {
+                self.c = SET(self.c, 3);
+            },
+            0xDA => {
+                self.d = SET(self.d, 3);
+            },
+            0xDB => {
+                self.e = SET(self.e, 3);
+            },
+            0xDC => {
+                self.h = SET(self.h, 3);
+            },
+            0xDD => {
+                self.l = SET(self.l, 3);
+            },
+            0xDE => {
+                // SET 3 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 3);
+                self.memory.write(address, value);
+            },
+            0xDF => {
+                self.a = SET(self.a, 3);
+            },
+            // SET 4 r8
+            0xE0 => {
+                self.b = SET(self.b, 4);
+            },
+            0xE1 => {
+                self.c = SET(self.c, 4);
+            },
+            0xE2 => {
+                self.d = SET(self.d, 4);
+            },
+            0xE3 => {
+                self.e = SET(self.e, 4);
+            },
+            0xE4 => {
+                self.h = SET(self.h, 4);
+            },
+            0xE5 => {
+                self.l = SET(self.l, 4);
+            },
+            0xE6 => {
+                // SET 4 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 4);
+                self.memory.write(address, value);
+            },
+            0xE7 => {
+                self.a = SET(self.a, 4);
+            },
+            // SET 5 r8
+            0xE8 => {
+                self.b = SET(self.b, 5);
+            },
+            0xE9 => {
+                self.c = SET(self.c, 5);
+            },
+            0xEA => {
+                self.d = SET(self.d, 5);
+            },
+            0xEB => {
+                self.e = SET(self.e, 5);
+            },
+            0xEC => {
+                self.h = SET(self.h, 5);
+            },
+            0xED => {
+                self.l = SET(self.l, 5);
+            },
+            0xEE => {
+                // SET 5 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 5);
+                self.memory.write(address, value);
+            },
+            0xEF => {
+                self.a = SET(self.a, 5);
+            },
+            // SET 6 r8
+            0xf0 => {
+                self.b = SET(self.b, 6);
+            },
+            0xF1 => {
+                self.c = SET(self.c, 6);
+            },
+            0xF2 => {
+                self.d = SET(self.d, 6);
+            },
+            0xF3 => {
+                self.e = SET(self.e, 6);
+            },
+            0xF4 => {
+                self.h = SET(self.h, 6);
+            },
+            0xF5 => {
+                self.l = SET(self.l, 6);
+            },
+            0xF6 => {
+                // SET 6 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 6);
+                self.memory.write(address, value);
+            },
+            0xF7 => {
+                self.a = SET(self.a, 6);
+            },
+            // SET 9 r8
+            0xF8 => {
+                self.b = SET(self.b, 7);
+            },
+            0xF9 => {
+                self.c = SET(self.c, 7);
+            },
+            0xFA => {
+                self.d = SET(self.d, 7);
+            },
+            0xFB => {
+                self.e = SET(self.e, 7);
+            },
+            0xFC => {
+                self.h = SET(self.h, 7);
+            },
+            0xFD => {
+                self.l = SET(self.l, 7);
+            },
+            0xFE => {
+                // SET 7 [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = SET(value, 7);
+                self.memory.write(address, value);
+            },
+            0xFF => {
+                self.a = SET(self.a, 7);
+            },
         }
     }
 
@@ -2600,5 +2830,9 @@ pub const Cpu = struct {
     fn RES(value: u8, bit: u3) u8 {
         const mask = ~(math.shl(u8, 1, bit));
         return value & mask;
+    }
+
+    fn SET(value: u8, bit: u3) u8 {
+        return value | math.shl(u8, 1, bit);
     }
 };
