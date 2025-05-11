@@ -1226,6 +1226,64 @@ pub const Cpu = struct {
             0x1F => {
                 self.a = self.RR(self.a);
             },
+            // SLA r8
+            0x20 => {
+                self.b = self.SLA(self.b);
+            },
+            0x21 => {
+                self.c = self.SLA(self.c);
+            },
+            0x22 => {
+                self.d = self.SLA(self.d);
+            },
+            0x23 => {
+                self.e = self.SLA(self.e);
+            },
+            0x24 => {
+                self.h = self.SLA(self.h);
+            },
+            0x25 => {
+                self.l = self.SLA(self.l);
+            },
+            0x26 => {
+                // SLA [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.SLA(value);
+                self.memory.write(address, value);
+            },
+            0x27 => {
+                self.a = self.SLA(self.a);
+            },
+            // SRA r8
+            0x28 => {
+                self.b = self.SRA(self.b);
+            },
+            0x29 => {
+                self.c = self.SRA(self.c);
+            },
+            0x2A => {
+                self.d = self.SRA(self.d);
+            },
+            0x2B => {
+                self.e = self.SRA(self.e);
+            },
+            0x2C => {
+                self.h = self.SRA(self.h);
+            },
+            0x2D => {
+                self.l = self.SRA(self.l);
+            },
+            0x2E => {
+                // SRA [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.SRA(value);
+                self.memory.write(address, value);
+            },
+            0x2F => {
+                self.a = self.SRA(self.a);
+            },
             else => {},
         }
     }
@@ -1922,5 +1980,74 @@ pub const Cpu = struct {
         self.clearFlag(Flag.z);
         self.clearFlag(Flag.n);
         self.clearFlag(Flag.h);
+    }
+
+    fn SRA(self: *Cpu, value: u8) u8 {
+        const oldBit0: bool = (value & 0x1) != 0;
+
+        if (oldBit0) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        const shiftedValue: u8 = @truncate(value >> 1 | (value & 1 << 7));
+
+        if (shiftedValue == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+
+        return shiftedValue;
+    }
+
+    fn SRL(self: *Cpu, value: u8) u8 {
+        const oldBit0: bool = (value & 0x1) != 0;
+
+        if (oldBit0) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        const shiftedValue: u8 = @truncate(value >> 1);
+
+        if (shiftedValue == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+
+        return shiftedValue;
+    }
+
+    fn SLA(self: *Cpu, value: u8) u8 {
+        const oldBit7: bool = (value & (1 << 7)) != 0;
+
+        if (oldBit7) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        const shiftedValue: u8 = @truncate(value << 1);
+
+        if (shiftedValue == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+
+        return shiftedValue;
     }
 };
