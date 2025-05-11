@@ -1,5 +1,6 @@
 const std = @import("std");
 const mem = @import("memory.zig");
+const math = std.math;
 
 pub const OP_CYCLES = [_]u8{
     // 1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -1081,6 +1082,12 @@ pub const Cpu = struct {
 
                 self.CP_A_r8(value);
             },
+            0x0F => {
+                self.RRCA();
+            },
+            0x1F => {
+                self.RRA();
+            },
             else => {},
         }
 
@@ -1088,7 +1095,6 @@ pub const Cpu = struct {
     }
 
     // Flag functions
-
     fn setFlag(self: *Cpu, flag: Flag) void {
         switch (flag) {
             Flag.c => {
@@ -1608,5 +1614,92 @@ pub const Cpu = struct {
         self.memory.write(self.sp, decomposedPc[1]);
 
         self.pc = vec;
+    }
+
+    // Bit shift instructions
+
+    fn RRC(self: *Cpu, register: u8) u8 {
+        const oldBit0: bool = (register & 0x1) != 0;
+
+        if (oldBit0) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        const rotatedValue = math.rotr(u8, register, 1);
+
+        if (rotatedValue == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+
+        return rotatedValue;
+    }
+
+    fn RRCA(self: *Cpu) void {
+        const oldBit0: bool = (self.a & 0x1) != 0;
+
+        if (oldBit0) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.a = math.rotr(u8, self.a, 1);
+
+        self.clearFlag(Flag.z);
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+    }
+
+    fn RR(self: *Cpu, register: u8) u8 {
+        const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
+        const registerCarry: u9 = @as(u9, register) << 1 | carryFlagBit;
+
+        const rotatedValue = math.rotr(u9, registerCarry, 1);
+        const newRegister: u8 = @truncate(rotatedValue >> 1);
+
+        const cFlagSet = rotatedValue & 1;
+
+        if (cFlagSet == 1) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        if (newRegister == 0) {
+            self.setFlag(Flag.z);
+        } else {
+            self.clearFlag(Flag.z);
+        }
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
+
+        return newRegister;
+    }
+
+    fn RRA(self: *Cpu) void {
+        const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
+        const aCarry: u9 = @as(u9, self.a) << 1 | carryFlagBit;
+
+        const rotatedValue = math.rotr(u9, aCarry, 1);
+        self.a = @truncate(rotatedValue >> 1);
+
+        const cFlagSet = rotatedValue & 1;
+
+        if (cFlagSet == 1) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.clearFlag(Flag.z);
+        self.clearFlag(Flag.n);
+        self.clearFlag(Flag.h);
     }
 };
