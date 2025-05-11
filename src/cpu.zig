@@ -325,6 +325,19 @@ pub const Cpu = struct {
 
                 self.memory.write(address, value);
             },
+            // Rotations
+            0x0F => {
+                self.RRCA();
+            },
+            0x1F => {
+                self.RRA();
+            },
+            0x07 => {
+                self.RLCA();
+            },
+            0x17 => {
+                self.RLA();
+            },
             // ADD HL r16
             0x09 => {
                 self.ADD_HL_r16(self.b, self.c);
@@ -1082,22 +1095,139 @@ pub const Cpu = struct {
 
                 self.CP_A_r8(value);
             },
-            0x0F => {
-                self.RRCA();
+            0xCB => {
+                const cbOpcode = self.memory.read(self.pc);
+                self.pc +%= 1;
+
+                self.executeOpcodeCb(cbOpcode);
             },
-            0x1F => {
-                self.RRA();
-            },
-            0x07 => {
-                self.RLCA();
-            },
-            0x17 => {
-                self.RLA();
-            },
+
             else => {},
         }
 
         return opCycles;
+    }
+
+    fn executeOpcodeCb(self: *Cpu, opcode: u8) void {
+        switch (opcode) {
+            // RLC r8
+            0x00 => {
+                self.b = self.RLC(self.b);
+            },
+            0x01 => {
+                self.c = self.RLC(self.c);
+            },
+            0x02 => {
+                self.d = self.RLC(self.d);
+            },
+            0x03 => {
+                self.e = self.RLC(self.e);
+            },
+            0x04 => {
+                self.h = self.RLC(self.h);
+            },
+            0x05 => {
+                self.l = self.RLC(self.l);
+            },
+            0x06 => {
+                // RLC [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.RLC(value);
+                self.memory.write(address, value);
+            },
+            0x07 => {
+                self.a = self.RLC(self.a);
+            },
+            // RRC r8
+            0x08 => {
+                self.b = self.RRC(self.b);
+            },
+            0x09 => {
+                self.c = self.RRC(self.c);
+            },
+            0x0A => {
+                self.d = self.RRC(self.d);
+            },
+            0x0B => {
+                self.e = self.RRC(self.e);
+            },
+            0x0C => {
+                self.h = self.RRC(self.h);
+            },
+            0x0D => {
+                self.l = self.RRC(self.l);
+            },
+            0x0E => {
+                // RRC [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.RRC(value);
+                self.memory.write(address, value);
+            },
+            0x0F => {
+                self.a = self.RRC(self.a);
+            },
+            // RL r8
+            0x10 => {
+                self.b = self.RL(self.b);
+            },
+            0x11 => {
+                self.c = self.RL(self.c);
+            },
+            0x12 => {
+                self.d = self.RL(self.d);
+            },
+            0x13 => {
+                self.e = self.RL(self.e);
+            },
+            0x14 => {
+                self.h = self.RL(self.h);
+            },
+            0x15 => {
+                self.l = self.RL(self.l);
+            },
+            0x16 => {
+                // RL [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.RL(value);
+                self.memory.write(address, value);
+            },
+            0x17 => {
+                self.a = self.RL(self.a);
+            },
+            // RR r8
+            0x18 => {
+                self.b = self.RR(self.b);
+            },
+            0x19 => {
+                self.c = self.RR(self.c);
+            },
+            0x1A => {
+                self.d = self.RR(self.d);
+            },
+            0x1B => {
+                self.e = self.RR(self.e);
+            },
+            0x1C => {
+                self.h = self.RR(self.h);
+            },
+            0x1D => {
+                self.l = self.RR(self.l);
+            },
+            0x1E => {
+                // RR [HL]
+                const address = combine8BitValues(self.h, self.l);
+                var value = self.memory.read(address);
+                value = self.RR(value);
+                self.memory.write(address, value);
+            },
+            0x1F => {
+                self.a = self.RR(self.a);
+            },
+            else => {},
+        }
     }
 
     // Flag functions
@@ -1624,8 +1754,8 @@ pub const Cpu = struct {
 
     // Bit shift instructions
 
-    fn RRC(self: *Cpu, register: u8) u8 {
-        const oldBit0: bool = (register & 0x1) != 0;
+    fn RRC(self: *Cpu, value: u8) u8 {
+        const oldBit0: bool = (value & 0x1) != 0;
 
         if (oldBit0) {
             self.setFlag(Flag.c);
@@ -1633,7 +1763,7 @@ pub const Cpu = struct {
             self.clearFlag(Flag.c);
         }
 
-        const rotatedValue = math.rotr(u8, register, 1);
+        const rotatedValue = math.rotr(u8, value, 1);
 
         if (rotatedValue == 0) {
             self.setFlag(Flag.z);
@@ -1663,11 +1793,11 @@ pub const Cpu = struct {
         self.clearFlag(Flag.h);
     }
 
-    fn RR(self: *Cpu, register: u8) u8 {
+    fn RR(self: *Cpu, value: u8) u8 {
         const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
-        const registerCarry: u9 = @as(u9, register) << 1 | carryFlagBit;
+        const valueCarry: u9 = @as(u9, value) << 1 | carryFlagBit;
 
-        const rotatedValue = math.rotr(u9, registerCarry, 1);
+        const rotatedValue = math.rotr(u9, valueCarry, 1);
         const newRegister: u8 = @truncate(rotatedValue >> 1);
 
         const cFlagSet = rotatedValue & 1;
@@ -1709,16 +1839,16 @@ pub const Cpu = struct {
         self.clearFlag(Flag.h);
     }
 
-    fn RLC(self: *Cpu, register: u8) u8 {
-        const oldBit0: bool = (register & 0x1) != 0;
+    fn RLC(self: *Cpu, value: u8) u8 {
+        const oldBit7: bool = (value & 0b10000000) != 0;
 
-        if (oldBit0) {
+        if (oldBit7) {
             self.setFlag(Flag.c);
         } else {
             self.clearFlag(Flag.c);
         }
 
-        const rotatedValue = math.rotl(u8, register, 1);
+        const rotatedValue = math.rotl(u8, value, 1);
 
         if (rotatedValue == 0) {
             self.setFlag(Flag.z);
@@ -1748,11 +1878,11 @@ pub const Cpu = struct {
         self.clearFlag(Flag.h);
     }
 
-    fn RL(self: *Cpu, register: u8) u8 {
+    fn RL(self: *Cpu, value: u8) u8 {
         const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
-        const registerCarry: u9 = @as(u9, register) << 1 | carryFlagBit;
+        const valueCarry: u9 = @as(u9, value) << 1 | carryFlagBit;
 
-        const rotatedValue = math.rotl(u9, registerCarry, 1);
+        const rotatedValue = math.rotl(u9, valueCarry, 1);
         const newRegister: u8 = @truncate(rotatedValue >> 1);
 
         const cFlagSet = rotatedValue & 1;
