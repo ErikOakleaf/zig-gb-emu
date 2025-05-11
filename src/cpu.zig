@@ -1,5 +1,5 @@
 const std = @import("std");
-const mem = @import("memory.zig");
+const memory = @import("memory.zig");
 const math = std.math;
 
 pub const OP_CYCLES = [_]u8{
@@ -62,10 +62,10 @@ pub const Cpu = struct {
     l: u8,
     sp: u16,
     pc: u16,
-    memory: *mem.Memory,
+    memory: *memory.Memory,
 
     pub fn init(self: *Cpu, allocator: *std.mem.Allocator) !void {
-        const memPtr = try allocator.create(mem.Memory);
+        const memPtr = try allocator.create(memory.Memory);
         memPtr.*.init();
         self.memory = memPtr;
 
@@ -338,6 +338,55 @@ pub const Cpu = struct {
             0x17 => {
                 self.RLA();
             },
+            // DAA
+            0x27 => {
+                var adjustment: u8 = 0;
+                var carryOut = self.flagIsSet(Flag.c) == 1;
+
+                if (self.flagIsSet(Flag.n) == 1) {
+                    if (self.flagIsSet(Flag.h) == 1) {
+                        adjustment += 0x06;
+                    }
+
+                    if (self.flagIsSet(Flag.c) == 1) {
+                        adjustment += 0x60;
+                    }
+
+                    self.a -%= adjustment;
+                } else {
+                    if (self.flagIsSet(Flag.h) == 1 or (self.a & 0x0F) > 0x9) {
+                        adjustment += 0x06;
+                    }
+
+                    if (self.flagIsSet(Flag.c) == 1 or self.a > 0x99) {
+                        adjustment += 0x60;
+                        carryOut = true;
+                    }
+
+                    self.a +%= adjustment;
+                }
+
+                if (self.a == 0) {
+                    self.setFlag(Flag.z);
+                } else {
+                    self.clearFlag(Flag.z);
+                }
+
+                if (carryOut == true) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                self.clearFlag(Flag.h);
+            },
+            // SCF
+            0x37 => {},
+            // CPL
+            0x2F => {},
+            // CCF
+            0x3F => {},
+
             // ADD HL r16
             0x09 => {
                 self.ADD_HL_r16(self.b, self.c);
