@@ -1170,6 +1170,9 @@ pub const Cpu = struct {
                 self.h = newValue[0];
                 self.l = newValue[1];
             },
+            0xF9 => {
+                self.sp = combine8BitValues(self.h, self.l);
+            },
             0xCB => {
                 const cbOpcode = self.memory.read(self.pc);
                 self.pc +%= 1;
