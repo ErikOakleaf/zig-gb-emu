@@ -403,6 +403,17 @@ pub const Cpu = struct {
                 self.clearFlag(Flag.n);
                 self.clearFlag(Flag.h);
             },
+            // LD [n16], SP
+            0x08 => {
+                const lo: u8 = self.memory.read(self.pc);
+                const hi: u8 = self.memory.read(self.pc + 1);
+                self.pc +%= 2;
+                const address = combine8BitValues(hi, lo);
+
+                const decomposedSp = decompose16BitValue(self.sp);
+                self.memory.write(address, decomposedSp[1]);
+                self.memory.write(address + 1, decomposedSp[0]);
+            },
             // ADD HL r16
             0x09 => {
                 self.ADD_HL_r16(self.b, self.c);
