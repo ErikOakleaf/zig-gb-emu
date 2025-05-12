@@ -1160,6 +1160,37 @@ pub const Cpu = struct {
 
                 self.CP_A_r8(value);
             },
+            // ADD SP, i8
+            0xE8 => {
+                const valueU8: u8 = self.memory.read(self.pc);
+                const value: i8 = @bitCast(valueU8);
+                self.pc +%= 1;
+
+                const lowBits: u8 = @truncate(self.sp);
+
+                const halfCarry = checkHalfCarry8(lowBits, valueU8);
+                const carry = checkCarry8(lowBits, valueU8);
+
+                if (halfCarry) {
+                    self.setFlag(Flag.h);
+                } else {
+                    self.clearFlag(Flag.h);
+                }
+
+                if (carry) {
+                    self.setFlag(Flag.c);
+                } else {
+                    self.clearFlag(Flag.c);
+                }
+
+                var spCopy: i16 = @bitCast(self.sp);
+                spCopy +%= value;
+
+                self.sp = @bitCast(spCopy);
+
+                self.clearFlag(Flag.z);
+                self.clearFlag(Flag.n);
+            },
             0xCB => {
                 const cbOpcode = self.memory.read(self.pc);
                 self.pc +%= 1;
