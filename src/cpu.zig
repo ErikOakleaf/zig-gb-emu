@@ -1162,34 +1162,13 @@ pub const Cpu = struct {
             },
             // ADD SP, i8
             0xE8 => {
-                const valueU8: u8 = self.memory.read(self.pc);
-                const value: i8 = @bitCast(valueU8);
-                self.pc +%= 1;
-
-                const lowBits: u8 = @truncate(self.sp);
-
-                const halfCarry = checkHalfCarry8(lowBits, valueU8);
-                const carry = checkCarry8(lowBits, valueU8);
-
-                if (halfCarry) {
-                    self.setFlag(Flag.h);
-                } else {
-                    self.clearFlag(Flag.h);
-                }
-
-                if (carry) {
-                    self.setFlag(Flag.c);
-                } else {
-                    self.clearFlag(Flag.c);
-                }
-
-                var spCopy: i16 = @bitCast(self.sp);
-                spCopy +%= value;
-
-                self.sp = @bitCast(spCopy);
-
-                self.clearFlag(Flag.z);
-                self.clearFlag(Flag.n);
+                self.sp = self.ADD_SP_i8();
+            },
+            // LD HL, SP + i8
+            0xF8 => {
+                const newValue = decompose16BitValue(self.ADD_SP_i8());
+                self.h = newValue[0];
+                self.l = newValue[1];
             },
             0xCB => {
                 const cbOpcode = self.memory.read(self.pc);
@@ -2649,6 +2628,38 @@ pub const Cpu = struct {
         self.memory.write(self.sp, decomposedPc[1]);
 
         self.pc = vec;
+    }
+
+    fn ADD_SP_i8(self: *Cpu) u16 {
+        const valueU8: u8 = self.memory.read(self.pc);
+        const value: i8 = @bitCast(valueU8);
+        self.pc +%= 1;
+
+        const lowBits: u8 = @truncate(self.sp);
+
+        const halfCarry = checkHalfCarry8(lowBits, valueU8);
+        const carry = checkCarry8(lowBits, valueU8);
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (carry) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.clearFlag(Flag.z);
+        self.clearFlag(Flag.n);
+
+        var spCopy: i16 = @bitCast(self.sp);
+        spCopy +%= value;
+
+        const newSp: u16 = @bitCast(spCopy);
+        return newSp;
     }
 
     // Bit shift instructions
