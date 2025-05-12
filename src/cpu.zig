@@ -381,12 +381,28 @@ pub const Cpu = struct {
                 self.clearFlag(Flag.h);
             },
             // SCF
-            0x37 => {},
+            0x37 => {
+                self.clearFlag(Flag.n);
+                self.clearFlag(Flag.h);
+                self.setFlag(Flag.c);
+            },
             // CPL
-            0x2F => {},
+            0x2F => {
+                self.a = ~(self.a);
+                self.setFlag(Flag.n);
+                self.setFlag(Flag.h);
+            },
             // CCF
-            0x3F => {},
-
+            0x3F => {
+                const flagSet: u8 = self.flagIsSet(Flag.c);
+                if (flagSet == 1) {
+                    self.clearFlag(Flag.c);
+                } else {
+                    self.setFlag(Flag.c);
+                }
+                self.clearFlag(Flag.n);
+                self.clearFlag(Flag.h);
+            },
             // ADD HL r16
             0x09 => {
                 self.ADD_HL_r16(self.b, self.c);
