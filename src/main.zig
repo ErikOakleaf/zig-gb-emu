@@ -1,6 +1,7 @@
 const std = @import("std");
 const memory = @import("memory.zig");
 const Cpu = @import("cpu.zig").Cpu;
+const Timer = @import("timer.zig").Timer;
 
 pub fn main() !void {
     // setup general purpose allocator
@@ -10,18 +11,23 @@ pub fn main() !void {
     var gbMemory: memory.Memory = undefined;
     gbMemory.init();
 
+    // setup timer
+    var gbTimer: Timer = undefined;
+    gbTimer.init(&gbMemory);
+
     // setup cpu
 
     var cpu: Cpu = undefined;
     try cpu.init(&gbMemory);
 
-    var totalTCycles: u32 = 0;
+    var totalMCycles: u32 = 0;
     // const T_CYCLES_PER_FRAME: u32 = 70224;
 
-    while (totalTCycles < 100000000) {
-        const tCycles = cpu.tick() * 4;
-        totalTCycles += tCycles;
+    while (totalMCycles < 100000000) {
+        const mCycles = cpu.tick();
+        gbTimer.tick(mCycles);
+        totalMCycles += mCycles;
     }
 
-    std.debug.print("{d}", .{totalTCycles});
+    std.debug.print("{d}", .{totalMCycles});
 }
