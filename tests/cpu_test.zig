@@ -205,7 +205,7 @@ pub fn cpuTest() !void {
             if (testFail) {
                 std.debug.print("test {s} failed\n", .{vector.name});
             } else {
-                std.debug.print("test {s} succeded\n", .{vector.name});
+                // std.debug.print("test {s} succeded\n", .{vector.name});
             }
 
             cpu.deinit(&allocator);

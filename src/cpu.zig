@@ -63,6 +63,7 @@ pub const Cpu = struct {
     sp: u16,
     pc: u16,
     memory: *memory.Memory,
+    ime: bool,
 
     pub fn init(self: *Cpu, allocator: *std.mem.Allocator) !void {
         const memPtr = try allocator.create(memory.Memory);
@@ -79,6 +80,7 @@ pub const Cpu = struct {
         self.l = 0;
         self.pc = 0;
         self.sp = 0;
+        self.ime = false;
     }
 
     pub fn deinit(self: *Cpu, allocator: *std.mem.Allocator) void {
@@ -1137,6 +1139,11 @@ pub const Cpu = struct {
             },
             0xC9 => {
                 self.RET();
+            },
+            // RETI
+            0xD9 => {
+                self.RET();
+                self.ime = true;
             },
             0xD8 => {
                 if (self.flagIsSet(Flag.c) == 1) {
