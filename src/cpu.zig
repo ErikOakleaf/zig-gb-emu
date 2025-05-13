@@ -89,6 +89,8 @@ pub const Cpu = struct {
     }
 
     pub fn tick(self: *Cpu) u8 {
+        // TODO - implement interupt handling
+
         const opcode: u8 = self.memory.read(self.pc);
 
         // std.debug.print("reading opcode: {d}, at memory: {d}\n", .{ opcode, self.pc });
@@ -101,8 +103,7 @@ pub const Cpu = struct {
 
     // executes opcode returns the ammount of cycles
     fn executeOpcode(self: *Cpu, opcode: u8) u8 {
-        const opCycles = OP_CYCLES[opcode];
-
+        const opCycles = if (opcode != 0xCB) OP_CYCLES[opcode] else OP_CB_CYCLES[self.memory.read(self.pc)];
         // std.debug.print("executing opcode: {d}\n", .{opcode});
 
         switch (opcode) {
@@ -1191,12 +1192,22 @@ pub const Cpu = struct {
             0xF9 => {
                 self.sp = combine8BitValues(self.h, self.l);
             },
+            // Disable interupts
+            0xF3 => {
+                self.ime = false;
+            },
+            // Enable interupts
+            0xFB => {
+                self.ime = true;
+            },
             0xCB => {
                 const cbOpcode = self.memory.read(self.pc);
                 self.pc +%= 1;
 
                 self.executeOpcodeCb(cbOpcode);
             },
+
+            // TODO might have to implement stop and halt instructions later
 
             else => {},
         }
