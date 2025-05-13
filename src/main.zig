@@ -15,12 +15,13 @@ pub fn main() !void {
     var cpu: Cpu = undefined;
     try cpu.init(&gbMemory);
 
-    var cycles: u32 = 0;
-    // const CYCLES_PER_FRAME: u32 = 70224;
+    var totalTCycles: u32 = 0;
+    // const T_CYCLES_PER_FRAME: u32 = 70224;
 
-    while (cycles < 100000000) {
-        cycles += cpu.tick();
+    while (totalTCycles < 100000000) {
+        const tCycles = cpu.tick() * 4;
+        totalTCycles += tCycles;
     }
 
-    std.debug.print("{d}", .{cycles});
+    std.debug.print("{d}", .{totalTCycles});
 }
