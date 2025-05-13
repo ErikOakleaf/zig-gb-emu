@@ -51,7 +51,6 @@ const Flag = enum(u8) {
 
 pub const Cpu = struct {
     // CPU Registers
-
     a: u8,
     f: u8,
     b: u8,
@@ -62,13 +61,15 @@ pub const Cpu = struct {
     l: u8,
     sp: u16,
     pc: u16,
-    memory: *memory.Memory,
+
+    // IME flag
     ime: bool,
 
-    pub fn init(self: *Cpu, allocator: *std.mem.Allocator) !void {
-        const memPtr = try allocator.create(memory.Memory);
-        memPtr.*.init();
-        self.memory = memPtr;
+    // Subsystems
+    memory: *memory.Memory,
+
+    pub fn init(self: *Cpu, mem: *memory.Memory) !void {
+        self.memory = mem;
 
         self.a = 0;
         self.f = 0;
@@ -83,17 +84,10 @@ pub const Cpu = struct {
         self.ime = false;
     }
 
-    pub fn deinit(self: *Cpu, allocator: *std.mem.Allocator) void {
-        allocator.destroy(self.memory);
-        self.memory = undefined;
-    }
-
     pub fn tick(self: *Cpu) u8 {
         // TODO - implement interupt handling
 
         const opcode: u8 = self.memory.read(self.pc);
-
-        // std.debug.print("reading opcode: {d}, at memory: {d}\n", .{ opcode, self.pc });
 
         self.pc +%= 1;
 
@@ -1143,8 +1137,8 @@ pub const Cpu = struct {
             },
             // RETI
             0xD9 => {
-                self.RET();
                 self.ime = true;
+                self.RET();
             },
             0xD8 => {
                 if (self.flagIsSet(Flag.c) == 1) {
