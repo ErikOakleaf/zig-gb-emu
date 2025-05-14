@@ -1,5 +1,5 @@
 const std = @import("std");
-const memory = @import("memory.zig");
+const Bus = @import("bus.zig").Bus;
 const math = std.math;
 
 pub const OP_CYCLES = [_]u8{
@@ -65,11 +65,11 @@ pub const Cpu = struct {
     // IME flag
     ime: bool,
 
-    // Subsystems
-    memory: *memory.Memory,
+    // Bus
+    bus: *Bus,
 
-    pub fn init(self: *Cpu, mem: *memory.Memory) !void {
-        self.memory = mem;
+    pub fn init(self: *Cpu, bus: *Bus) !void {
+        self.bus = bus;
 
         self.a = 0;
         self.f = 0;
@@ -87,7 +87,7 @@ pub const Cpu = struct {
     pub fn tick(self: *Cpu) u8 {
         // TODO - implement interupt handling
 
-        const opcode: u8 = self.memory.read(self.pc);
+        const opcode: u8 = self.bus.read(self.pc);
 
         self.pc +%= 1;
 
@@ -97,7 +97,7 @@ pub const Cpu = struct {
 
     // executes opcode returns the ammount of cycles
     fn executeOpcode(self: *Cpu, opcode: u8) u8 {
-        const opCycles = if (opcode != 0xCB) OP_CYCLES[opcode] else OP_CB_CYCLES[self.memory.read(self.pc)];
+        const opCycles = if (opcode != 0xCB) OP_CYCLES[opcode] else OP_CB_CYCLES[self.bus.read(self.pc)];
         // std.debug.print("executing opcode: {d}\n", .{opcode});
 
         switch (opcode) {
@@ -115,8 +115,8 @@ pub const Cpu = struct {
             },
             0x31 => {
                 // load register SP
-                const lo: u8 = self.memory.read(self.pc);
-                const hi: u8 = self.memory.read(self.pc + 1);
+                const lo: u8 = self.bus.read(self.pc);
+                const hi: u8 = self.bus.read(self.pc + 1);
                 self.pc +%= 2;
 
                 const value: u16 = (@as(u16, hi) << 8) | lo;
@@ -153,7 +153,7 @@ pub const Cpu = struct {
             },
             // LD n16, A
             0xE0 => {
-                const value: u16 = @intCast(self.memory.read(self.pc));
+                const value: u16 = @intCast(self.bus.read(self.pc));
                 self.pc +%= 1;
                 const address = value +% 0xFF00;
                 self.LD_n16_A(address);
@@ -163,8 +163,8 @@ pub const Cpu = struct {
                 self.LD_n16_A(address);
             },
             0xEA => {
-                const lo: u8 = self.memory.read(self.pc);
-                const hi: u8 = self.memory.read(self.pc + 1);
+                const lo: u8 = self.bus.read(self.pc);
+                const hi: u8 = self.bus.read(self.pc + 1);
                 self.pc +%= 2;
 
                 const address = combine8BitValues(hi, lo);
@@ -173,7 +173,7 @@ pub const Cpu = struct {
             },
             // LD A, n16
             0xF0 => {
-                const value: u16 = @intCast(self.memory.read(self.pc));
+                const value: u16 = @intCast(self.bus.read(self.pc));
                 self.pc +%= 1;
                 const address = value +% 0xFF00;
                 self.LD_A_n16(address);
@@ -183,8 +183,8 @@ pub const Cpu = struct {
                 self.LD_A_n16(address);
             },
             0xFA => {
-                const lo: u8 = self.memory.read(self.pc);
-                const hi: u8 = self.memory.read(self.pc + 1);
+                const lo: u8 = self.bus.read(self.pc);
+                const hi: u8 = self.bus.read(self.pc + 1);
                 self.pc +%= 2;
 
                 const address = combine8BitValues(hi, lo);
@@ -219,7 +219,7 @@ pub const Cpu = struct {
                 // increment register HL
 
                 const address: u16 = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
 
                 const halfCarry = checkHalfCarry8(value, 1);
 
@@ -239,7 +239,7 @@ pub const Cpu = struct {
 
                 self.clearFlag(Flag.n);
 
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x0C => {
                 self.INC_r8(&self.c);
@@ -267,7 +267,7 @@ pub const Cpu = struct {
                 // decrement register HL
 
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
 
                 const halfCarry = checkHalfBorrow8(value, 1);
 
@@ -287,7 +287,7 @@ pub const Cpu = struct {
 
                 self.setFlag(Flag.n);
 
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x0D => {
                 self.DEC_r8(&self.c);
@@ -317,10 +317,10 @@ pub const Cpu = struct {
             },
             0x36 => {
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             // Rotations
             0x0F => {
@@ -402,14 +402,14 @@ pub const Cpu = struct {
             },
             // LD [n16], SP
             0x08 => {
-                const lo: u8 = self.memory.read(self.pc);
-                const hi: u8 = self.memory.read(self.pc + 1);
+                const lo: u8 = self.bus.read(self.pc);
+                const hi: u8 = self.bus.read(self.pc + 1);
                 self.pc +%= 2;
                 const address = combine8BitValues(hi, lo);
 
                 const decomposedSp = decompose16BitValue(self.sp);
-                self.memory.write(address, decomposedSp[1]);
-                self.memory.write(address + 1, decomposedSp[0]);
+                self.bus.write(address, decomposedSp[1]);
+                self.bus.write(address + 1, decomposedSp[0]);
             },
             // ADD HL r16
             0x09 => {
@@ -721,7 +721,7 @@ pub const Cpu = struct {
                 // ADD A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.ADD_A_r8(value);
             },
             0x87 => {
@@ -750,7 +750,7 @@ pub const Cpu = struct {
                 // ADC A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.ADC_A_r8(value);
             },
             0x8F => {
@@ -779,7 +779,7 @@ pub const Cpu = struct {
                 // SUB A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.SUB_A_r8(value);
             },
             0x97 => {
@@ -808,7 +808,7 @@ pub const Cpu = struct {
                 // SBC A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.SBC_A_r8(value);
             },
             0x9F => {
@@ -837,7 +837,7 @@ pub const Cpu = struct {
                 // AND A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.AND_A_r8(value);
             },
             0xA7 => {
@@ -866,7 +866,7 @@ pub const Cpu = struct {
                 // XOR A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.XOR_A_r8(value);
             },
             0xAF => {
@@ -894,7 +894,7 @@ pub const Cpu = struct {
                 // OR A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.OR_A_r8(value);
             },
             0xB7 => {
@@ -923,7 +923,7 @@ pub const Cpu = struct {
                 // CP A, [HL]
 
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.CP_A_r8(value);
             },
             0xBF => {
@@ -973,8 +973,8 @@ pub const Cpu = struct {
             },
             0xF1 => {
                 // POP AF
-                const lo: u8 = self.memory.read(self.sp);
-                const hi: u8 = self.memory.read(self.sp + 1);
+                const lo: u8 = self.bus.read(self.sp);
+                const hi: u8 = self.bus.read(self.sp + 1);
                 self.sp +%= 2;
 
                 self.a = hi;
@@ -1065,28 +1065,28 @@ pub const Cpu = struct {
             },
             0xC6 => {
                 // ADD A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.ADD_A_r8(value);
             },
             0xD6 => {
                 // SUB A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.SUB_A_r8(value);
             },
             0xE6 => {
                 // AND A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.AND_A_r8(value);
             },
             0xF6 => {
                 // OR A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.OR_A_r8(value);
@@ -1147,28 +1147,28 @@ pub const Cpu = struct {
             },
             0xCE => {
                 // ADC A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.ADC_A_r8(value);
             },
             0xDE => {
                 // SBC A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.SBC_A_r8(value);
             },
             0xEE => {
                 // XOR A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.XOR_A_r8(value);
             },
             0xFE => {
                 // CP A, n8
-                const value = self.memory.read(self.pc);
+                const value = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.CP_A_r8(value);
@@ -1195,7 +1195,7 @@ pub const Cpu = struct {
                 self.ime = true;
             },
             0xCB => {
-                const cbOpcode = self.memory.read(self.pc);
+                const cbOpcode = self.bus.read(self.pc);
                 self.pc +%= 1;
 
                 self.executeOpcodeCb(cbOpcode);
@@ -1233,9 +1233,9 @@ pub const Cpu = struct {
             0x06 => {
                 // RLC [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.RLC(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x07 => {
                 self.a = self.RLC(self.a);
@@ -1262,9 +1262,9 @@ pub const Cpu = struct {
             0x0E => {
                 // RRC [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.RRC(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x0F => {
                 self.a = self.RRC(self.a);
@@ -1291,9 +1291,9 @@ pub const Cpu = struct {
             0x16 => {
                 // RL [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.RL(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x17 => {
                 self.a = self.RL(self.a);
@@ -1320,9 +1320,9 @@ pub const Cpu = struct {
             0x1E => {
                 // RR [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.RR(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x1F => {
                 self.a = self.RR(self.a);
@@ -1349,9 +1349,9 @@ pub const Cpu = struct {
             0x26 => {
                 // SLA [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.SLA(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x27 => {
                 self.a = self.SLA(self.a);
@@ -1378,9 +1378,9 @@ pub const Cpu = struct {
             0x2E => {
                 // SRA [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.SRA(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x2F => {
                 self.a = self.SRA(self.a);
@@ -1407,9 +1407,9 @@ pub const Cpu = struct {
             0x3E => {
                 // SRL [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.SRL(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x3F => {
                 self.a = self.SRL(self.a);
@@ -1436,9 +1436,9 @@ pub const Cpu = struct {
             0x36 => {
                 // SWAP [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = self.SWAP(value);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x37 => {
                 self.a = self.SWAP(self.a);
@@ -1465,7 +1465,7 @@ pub const Cpu = struct {
             0x46 => {
                 // BIT 0 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 0);
             },
             0x47 => {
@@ -1493,7 +1493,7 @@ pub const Cpu = struct {
             0x4E => {
                 // BIT 1 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 1);
             },
             0x4F => {
@@ -1521,7 +1521,7 @@ pub const Cpu = struct {
             0x56 => {
                 // BIT 2 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 2);
             },
             0x57 => {
@@ -1549,7 +1549,7 @@ pub const Cpu = struct {
             0x5E => {
                 // BIT 3 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 3);
             },
             0x5F => {
@@ -1577,7 +1577,7 @@ pub const Cpu = struct {
             0x66 => {
                 // BIT 4 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 4);
             },
             0x67 => {
@@ -1605,7 +1605,7 @@ pub const Cpu = struct {
             0x6E => {
                 // BIT 5 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 5);
             },
             0x6F => {
@@ -1633,7 +1633,7 @@ pub const Cpu = struct {
             0x76 => {
                 // BIT 6 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 6);
             },
             0x77 => {
@@ -1661,7 +1661,7 @@ pub const Cpu = struct {
             0x7E => {
                 // BIT 7 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                const value = self.memory.read(address);
+                const value = self.bus.read(address);
                 self.BIT(value, 7);
             },
             0x7F => {
@@ -1689,9 +1689,9 @@ pub const Cpu = struct {
             0x86 => {
                 // RES 0 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 0);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x87 => {
                 self.a = RES(self.a, 0);
@@ -1718,9 +1718,9 @@ pub const Cpu = struct {
             0x8E => {
                 // RES 1 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 1);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x8F => {
                 self.a = RES(self.a, 1);
@@ -1747,9 +1747,9 @@ pub const Cpu = struct {
             0x96 => {
                 // RES 2 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 2);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x97 => {
                 self.a = RES(self.a, 2);
@@ -1776,9 +1776,9 @@ pub const Cpu = struct {
             0x9E => {
                 // RES 3 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 3);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0x9F => {
                 self.a = RES(self.a, 3);
@@ -1805,9 +1805,9 @@ pub const Cpu = struct {
             0xA6 => {
                 // RES 4 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 4);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xA7 => {
                 self.a = RES(self.a, 4);
@@ -1834,9 +1834,9 @@ pub const Cpu = struct {
             0xAE => {
                 // RES 5 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 5);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xAF => {
                 self.a = RES(self.a, 5);
@@ -1863,9 +1863,9 @@ pub const Cpu = struct {
             0xB6 => {
                 // RES 6 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 6);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xB7 => {
                 self.a = RES(self.a, 6);
@@ -1892,9 +1892,9 @@ pub const Cpu = struct {
             0xBE => {
                 // RES 7 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = RES(value, 7);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xBF => {
                 self.a = RES(self.a, 7);
@@ -1921,9 +1921,9 @@ pub const Cpu = struct {
             0xC6 => {
                 // SET 0 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 0);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xC7 => {
                 self.a = SET(self.a, 0);
@@ -1950,9 +1950,9 @@ pub const Cpu = struct {
             0xCE => {
                 // SET 1 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 1);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xCF => {
                 self.a = SET(self.a, 1);
@@ -1979,9 +1979,9 @@ pub const Cpu = struct {
             0xD6 => {
                 // SET 2 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 2);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xD7 => {
                 self.a = SET(self.a, 2);
@@ -2008,9 +2008,9 @@ pub const Cpu = struct {
             0xDE => {
                 // SET 3 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 3);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xDF => {
                 self.a = SET(self.a, 3);
@@ -2037,9 +2037,9 @@ pub const Cpu = struct {
             0xE6 => {
                 // SET 4 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 4);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xE7 => {
                 self.a = SET(self.a, 4);
@@ -2066,9 +2066,9 @@ pub const Cpu = struct {
             0xEE => {
                 // SET 5 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 5);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xEF => {
                 self.a = SET(self.a, 5);
@@ -2095,9 +2095,9 @@ pub const Cpu = struct {
             0xF6 => {
                 // SET 6 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 6);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xF7 => {
                 self.a = SET(self.a, 6);
@@ -2124,9 +2124,9 @@ pub const Cpu = struct {
             0xFE => {
                 // SET 7 [HL]
                 const address = combine8BitValues(self.h, self.l);
-                var value = self.memory.read(address);
+                var value = self.bus.read(address);
                 value = SET(value, 7);
-                self.memory.write(address, value);
+                self.bus.write(address, value);
             },
             0xFF => {
                 self.a = SET(self.a, 7);
@@ -2268,8 +2268,8 @@ pub const Cpu = struct {
     // instruction implementation
 
     fn LD_r16_n16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
-        const lo: u8 = self.memory.read(self.pc);
-        const hi: u8 = self.memory.read(self.pc + 1);
+        const lo: u8 = self.bus.read(self.pc);
+        const hi: u8 = self.bus.read(self.pc + 1);
         self.pc +%= 2;
 
         hiRegister.* = hi;
@@ -2277,7 +2277,7 @@ pub const Cpu = struct {
     }
 
     fn LD_r8_n8(self: *Cpu, register: *u8) void {
-        const value: u8 = self.memory.read(self.pc);
+        const value: u8 = self.bus.read(self.pc);
         self.pc +%= 1;
         register.* = value;
     }
@@ -2288,30 +2288,30 @@ pub const Cpu = struct {
 
     fn LD_r8_HL(self: *Cpu, register: *u8) void {
         const address = combine8BitValues(self.h, self.l);
-        register.* = self.memory.read(address);
+        register.* = self.bus.read(address);
     }
 
     fn LD_HL_r8(self: *Cpu, register: *u8) void {
         const address = combine8BitValues(self.h, self.l);
-        self.memory.write(address, register.*);
+        self.bus.write(address, register.*);
     }
 
     fn LD_r16_A(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
-        self.memory.write(address, self.a);
+        self.bus.write(address, self.a);
     }
 
     fn LD_n16_A(self: *Cpu, address: u16) void {
-        self.memory.write(address, self.a);
+        self.bus.write(address, self.a);
     }
 
     fn LD_A_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
-        self.a = self.memory.read(address);
+        self.a = self.bus.read(address);
     }
 
     fn LD_A_n16(self: *Cpu, address: u16) void {
-        self.a = self.memory.read(address);
+        self.a = self.bus.read(address);
     }
 
     fn INC_r16(hiRegister: *u8, loRegister: *u8) void {
@@ -2584,7 +2584,7 @@ pub const Cpu = struct {
     }
 
     fn JR(self: *Cpu) void {
-        const offset: i8 = @bitCast(self.memory.read(self.pc));
+        const offset: i8 = @bitCast(self.bus.read(self.pc));
         self.pc +%= 1;
 
         var pcCopy: i32 = @intCast(self.pc);
@@ -2596,16 +2596,16 @@ pub const Cpu = struct {
     }
 
     fn JP_n16(self: *Cpu) void {
-        const lo: u8 = self.memory.read(self.pc);
-        const hi: u8 = self.memory.read(self.pc + 1);
+        const lo: u8 = self.bus.read(self.pc);
+        const hi: u8 = self.bus.read(self.pc + 1);
         const address = combine8BitValues(hi, lo);
 
         self.pc = address;
     }
 
     fn POP_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
-        const lo: u8 = self.memory.read(self.sp);
-        const hi: u8 = self.memory.read(self.sp + 1);
+        const lo: u8 = self.bus.read(self.sp);
+        const hi: u8 = self.bus.read(self.sp + 1);
         self.sp +%= 2;
 
         hiRegister.* = hi;
@@ -2614,14 +2614,14 @@ pub const Cpu = struct {
 
     fn PUSH_r16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
         self.sp -%= 1;
-        self.memory.write(self.sp, hiRegister);
+        self.bus.write(self.sp, hiRegister);
         self.sp -%= 1;
-        self.memory.write(self.sp, loRegister);
+        self.bus.write(self.sp, loRegister);
     }
 
     fn RET(self: *Cpu) void {
-        const lo: u8 = self.memory.read(self.sp);
-        const hi: u8 = self.memory.read(self.sp + 1);
+        const lo: u8 = self.bus.read(self.sp);
+        const hi: u8 = self.bus.read(self.sp + 1);
         self.sp +%= 2;
 
         const address = combine8BitValues(hi, lo);
@@ -2630,17 +2630,17 @@ pub const Cpu = struct {
     }
 
     fn CALL_n16(self: *Cpu) void {
-        const lo: u8 = self.memory.read(self.pc);
-        const hi: u8 = self.memory.read(self.pc + 1);
+        const lo: u8 = self.bus.read(self.pc);
+        const hi: u8 = self.bus.read(self.pc + 1);
         const address = combine8BitValues(hi, lo);
 
         const returnAddress = self.pc +% 2;
         const decomposedPc = decompose16BitValue(returnAddress);
 
         self.sp -%= 1;
-        self.memory.write(self.sp, decomposedPc[0]);
+        self.bus.write(self.sp, decomposedPc[0]);
         self.sp -%= 1;
-        self.memory.write(self.sp, decomposedPc[1]);
+        self.bus.write(self.sp, decomposedPc[1]);
 
         self.pc = address;
     }
@@ -2649,15 +2649,15 @@ pub const Cpu = struct {
         const decomposedPc = decompose16BitValue(self.pc);
 
         self.sp -%= 1;
-        self.memory.write(self.sp, decomposedPc[0]);
+        self.bus.write(self.sp, decomposedPc[0]);
         self.sp -%= 1;
-        self.memory.write(self.sp, decomposedPc[1]);
+        self.bus.write(self.sp, decomposedPc[1]);
 
         self.pc = vec;
     }
 
     fn ADD_SP_i8(self: *Cpu) u16 {
-        const valueU8: u8 = self.memory.read(self.pc);
+        const valueU8: u8 = self.bus.read(self.pc);
         const value: i8 = @bitCast(valueU8);
         self.pc +%= 1;
 
