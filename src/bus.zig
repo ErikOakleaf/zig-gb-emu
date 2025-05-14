@@ -1,6 +1,9 @@
+const std = @import("std");
 const Memory = @import("memory.zig").Memory;
 const Timer = @import("timer.zig").Timer;
-const TIMER_PERIODS = @import("timer.zig").TIMER_PERIODS;
+
+// define constants
+const BITS: [4]u8 = .{ 0, 3, 5, 7 };
 
 pub const Bus = struct {
     memory: *Memory,
@@ -28,42 +31,58 @@ pub const Bus = struct {
     // Timer functions
 
     pub fn tickTimer(self: *Bus, mCycles: u32) void {
-        self.timer.timAcc += mCycles;
-        self.timer.divAcc += mCycles;
-
-        self.incrementTima();
-        self.incrementDiv();
+        self.incrementTima(mCycles);
+        self.timer.sysCount +%= mCycles;
+        self.updateDiv();
     }
 
-    fn incrementDiv(self: *Bus) void {
-        while (self.timer.divAcc >= 256) {
-            self.timer.divAcc -= 256;
-            self.memory.write(0xFF04, self.memory.read(0xFF04) +% 1);
-        }
+    fn updateDiv(self: *Bus) void {
+        // update the div register to be the high byte of the sysCount
+        const newDiv: u8 = @truncate(self.timer.sysCount >> 8);
+        self.memory.write(0x0FF04, newDiv);
     }
 
-    fn incrementTima(self: *Bus) void {
+    fn incrementTima(self: *Bus, mCycles: u8) void {
         const TAC: u8 = self.memory.read(0xFF07);
         const enable: bool = (TAC & 0b100) > 0;
         const clockSelect: u2 = @truncate(TAC);
 
         if (enable) {
-            const incrementEvery = TIMER_PERIODS[@as(usize, clockSelect)];
+            const bit = BITS[@as(usize, clockSelect)];
 
-            while (self.timer.timAcc >= incrementEvery) {
-                self.timer.timAcc -= incrementEvery;
+            const fallingEdges: u8 = checkFallingEdges(self.timer.sysCount, mCycles, bit);
 
-                // read the current time
-                const currentValue: u8 = self.memory.read(0xFF05);
+            // read the current time
+            const currentValue: u8 = self.memory.read(0xFF05);
 
-                // check for overflow
-                if (currentValue == 0xFF) {
-                    self.handleOverflow();
-                } else {
-                    self.memory.write(0xFF05, currentValue + 1);
-                }
+            // check for overflow
+            if (currentValue >= 0xFF - fallingEdges) {
+                self.handleOverflow();
+            } else {
+                self.memory.write(0xFF05, currentValue + fallingEdges);
             }
         }
+    }
+
+    fn checkFallingEdges(old: u32, mCycles: u32, bit: u8) u8 {
+        // this is equivalent to 2^(bit + 1)
+        const period: u32 = std.math.shl(u32, 1, bit + 1); // one full cycle for the given bit
+        const halfPeriod: u32 = std.math.shl(u32, 1, bit); // half a cycle for the given bit
+        const oldPosition = old & (period - 1); // old % period. This is were we are right now in a cycle
+        const total = oldPosition + mCycles;
+        const newPosition = total & (period - 1);
+
+        // calculate the full wraps. Simple enough just see how many times the total value fits in the period
+        const fullWraps: u8 = @truncate(total / period);
+
+        // if the old position is lagrer than a half period and the new position is smaller it means we have a partial
+        // wrap around since they combined become >= one period
+        var partialWraps: u8 = 0;
+        if (oldPosition >= halfPeriod and newPosition < halfPeriod) {
+            partialWraps = 1;
+        }
+
+        return fullWraps + partialWraps;
     }
 
     fn handleOverflow(self: *Bus) void {
