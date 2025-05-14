@@ -10,7 +10,6 @@ pub fn main() !void {
 
     // setup memory
     var memory: Memory = undefined;
-    memory.init();
 
     // setup timer
     var timer: Timer = undefined;
@@ -18,7 +17,6 @@ pub fn main() !void {
     // setup bus
     var bus: Bus = undefined;
     bus.init(&memory, &timer);
-    bus.initTimer();
 
     // setup cpu
     var cpu: Cpu = undefined;
