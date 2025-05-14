@@ -3,7 +3,7 @@ const Memory = @import("memory.zig").Memory;
 const Timer = @import("timer.zig").Timer;
 
 // define constants
-const BITS: [4]u8 = .{ 0, 3, 5, 7 };
+const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 
 pub const Bus = struct {
     memory: *Memory,
@@ -19,8 +19,7 @@ pub const Bus = struct {
     }
 
     pub fn initTimer(self: *Bus) void {
-        self.timer.divAcc = 0;
-        self.timer.timAcc = 0;
+        self.timer.sysCount = 0;
 
         self.memory.write(0xFF04, 0);
         self.memory.write(0xFF05, 0);
@@ -31,6 +30,15 @@ pub const Bus = struct {
     // Timer functions
 
     pub fn tickTimer(self: *Bus, mCycles: u32) void {
+        // if there is a overflow delay decrement it and handle overflow
+        if (self.timer.overflowDelay > 0) {
+            const toConsume = @min(self.timer.overflowDelay, mCycles);
+            self.timer.overflowDelay -= toConsume;
+            if (self.timer.overflowDelay == 0) {
+                self.handleOverflow();
+            }
+        }
+
         self.incrementTima(mCycles);
         self.timer.sysCount +%= mCycles;
         self.updateDiv();
@@ -39,10 +47,10 @@ pub const Bus = struct {
     fn updateDiv(self: *Bus) void {
         // update the div register to be the high byte of the sysCount
         const newDiv: u8 = @truncate(self.timer.sysCount >> 8);
-        self.memory.write(0x0FF04, newDiv);
+        self.memory.write(0xFF04, newDiv);
     }
 
-    fn incrementTima(self: *Bus, mCycles: u8) void {
+    fn incrementTima(self: *Bus, mCycles: u32) void {
         const TAC: u8 = self.memory.read(0xFF07);
         const enable: bool = (TAC & 0b100) > 0;
         const clockSelect: u2 = @truncate(TAC);
@@ -57,7 +65,8 @@ pub const Bus = struct {
 
             // check for overflow
             if (currentValue >= 0xFF - fallingEdges) {
-                self.handleOverflow();
+                // there is a 4‑cycle delay between TIMA overflow and interrupt
+                self.timer.overflowDelay = 4;
             } else {
                 self.memory.write(0xFF05, currentValue + fallingEdges);
             }
@@ -99,7 +108,7 @@ pub const Bus = struct {
         // if write is done to div register [0xFF04] always reset it
         if (address == 0xFF04) {
             self.memory.write(0xFF04, 0);
-            self.timer.divAcc = 0;
+            self.timer.sysCount = 0;
             return;
         }
 

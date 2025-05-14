@@ -4,5 +4,5 @@ pub const TIMER_PERIODS = [4]u16{ 1024, 16, 64, 256 };
 
 pub const Timer = struct {
     sysCount: u32,
-    timAcc: u32,
+    overflowDelay: u8,
 };
