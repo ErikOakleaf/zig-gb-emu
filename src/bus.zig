@@ -110,12 +110,26 @@ pub const Bus = struct {
             self.memory.write(0xFF04, 0);
             self.timer.sysCount = 0;
             return;
+        } else if (address == 0xFF02) {
+            // TODO - check this implementation more thourgouhly later now for debugging serial transfer
+            if ((value & 0x80) != 0) {
+                const serialBuffer = self.memory.read(0xFF01);
+                std.debug.print("{c}", .{serialBuffer});
+
+                self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
+            }
+            return;
         }
 
         self.memory.write(address, value);
     }
 
     pub fn read(self: *Bus, address: u16) u8 {
+        // TODO - for debbuging right now remove this later when the PPU is finished
+        if (address == 0xFF44) {
+            return 0x90;
+        }
+
         return self.memory.read(address);
     }
 };

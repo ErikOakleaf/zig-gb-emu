@@ -49,6 +49,16 @@ const Flag = enum(u8) {
     z = 7,
 };
 
+const InterruptType = enum(usize) {
+    VBlank,
+    LCD,
+    Timer,
+    Serial,
+    Joypad,
+};
+
+const INTERRUPT_ADDRESSES: [5]u16 = .{ 0x0040, 0x0048, 0x0050, 0x0058, 0x0060 };
+
 pub const Cpu = struct {
     // CPU Registers
     a: u8,
@@ -62,8 +72,9 @@ pub const Cpu = struct {
     sp: u16,
     pc: u16,
 
-    // IME flag
+    // CPU Flags
     ime: bool,
+    halted: bool,
 
     // Bus
     bus: *Bus,
@@ -82,17 +93,37 @@ pub const Cpu = struct {
         self.pc = 0;
         self.sp = 0;
         self.ime = false;
+        self.halted = false;
     }
 
     pub fn tick(self: *Cpu) u8 {
-        // TODO - implement interupt handling
+        // handle halting
+        if (self.halted) {
+            const haltCycles = 1;
+            self.bus.tickTimer(haltCycles);
 
+            // wake up on any enabled or pending interupt
+            const interruptCycles = self.checkInterrputs();
+            if (interruptCycles > 0) {
+                self.bus.tickTimer(interruptCycles);
+            }
+
+            return haltCycles + interruptCycles;
+        }
+
+        // read opcode
         const opcode: u8 = self.bus.read(self.pc);
-
         self.pc +%= 1;
 
-        const cycles = self.executeOpcode(opcode);
-        return cycles;
+        // execute opcode
+        const instructionCycles = self.executeOpcode(opcode);
+        self.bus.tickTimer(instructionCycles);
+
+        // check for interupts
+        const interruptCycles = self.checkInterrputs();
+        self.bus.tickTimer(interruptCycles);
+
+        return instructionCycles + interruptCycles;
     }
 
     // executes opcode returns the ammount of cycles
@@ -669,7 +700,7 @@ pub const Cpu = struct {
                 self.LD_HL_r8(&self.l);
             },
             0x76 => {
-                // TODO implement halt here
+                self.halted = true;
             },
             0x77 => {
                 self.LD_HL_r8(&self.a);
@@ -2132,6 +2163,38 @@ pub const Cpu = struct {
                 self.a = SET(self.a, 7);
             },
         }
+    }
+
+    fn checkInterrputs(self: *Cpu) u8 {
+        const pending = self.bus.read(0xFFFF) & self.bus.read(0xFF0F) & 0x1F;
+        if (pending != 0 and self.ime) {
+            if ((pending & 1 != 0)) {
+                self.handleInterrupt(InterruptType.VBlank);
+            } else if ((pending & (1 << 1) != 0)) {
+                self.handleInterrupt(InterruptType.LCD);
+            } else if ((pending & (1 << 2) != 0)) {
+                self.handleInterrupt(InterruptType.Timer);
+            } else if ((pending & (1 << 3) != 0)) {
+                self.handleInterrupt(InterruptType.Serial);
+            } else if ((pending & (1 << 4) != 0)) {
+                self.handleInterrupt(InterruptType.Joypad);
+            }
+            return 20;
+        }
+        return 0;
+    }
+
+    fn handleInterrupt(self: *Cpu, interruptType: InterruptType) void {
+        self.ime = false;
+        self.halted = false;
+
+        // push pc to stack and jump to interupt address
+        const decomposedPc = decompose16BitValue(self.pc);
+        self.PUSH_r16(decomposedPc[0], decomposedPc[1]);
+        self.pc = INTERRUPT_ADDRESSES[@intFromEnum(interruptType)];
+
+        // clear the interput flag bit
+        self.bus.write(0xFF0F, self.bus.read(0xFF0F) & ~std.math.shl(u8, 1, @intFromEnum(interruptType)));
     }
 
     // Flag functions
