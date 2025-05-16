@@ -2,6 +2,10 @@ const std = @import("std");
 const fs = std.fs;
 const Memory = @import("memory.zig").Memory;
 const Timer = @import("timer.zig").Timer;
+const Cartridge = @import("cartridge.zig").Cartridge;
+const CartridgeType = @import("cartridge.zig").CartridgeType;
+const RomSize = @import("cartridge.zig").RomSize;
+const RamSize = @import("cartridge.zig").RamSize;
 
 // define constants
 const BITS: [4]u8 = .{ 9, 3, 5, 7 };
@@ -9,6 +13,7 @@ const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 pub const Bus = struct {
     memory: *Memory,
     timer: *Timer,
+    cartridge: *Cartridge,
 
     // Init functions
 
@@ -111,7 +116,10 @@ pub const Bus = struct {
             self.memory.write(0xFF04, 0);
             self.timer.sysCount = 0;
             return;
-        } else if (address == 0xFF02) {
+        }
+
+        // serial transfer register
+        if (address == 0xFF02) {
             // TODO - check this implementation more thourgouhly later now for debugging serial transfer
             if ((value & 0x80) != 0) {
                 const serialBuffer = self.memory.read(0xFF01);
@@ -146,14 +154,49 @@ pub const Bus = struct {
         const bytesRead = try file.readAll(buffer);
 
         // Verify we read the entire file
+        // TODO - might remove this later is it really doing anything should readALl not return a error ?
         if (bytesRead != fileSize) {
             // Handle error: didn't read entire file
             allocator.free(buffer);
             return error.IncompleteRead;
         }
 
-        for (0..bytesRead) |i| {
-            self.memory.rom[i] = buffer[i];
+        // TODO - this will work for now for MBC1 but needs more thourough handling down the line since the buffer values
+        // won't map on to the enums
+        const title: []const u8 = buffer[0x0134..0x0143];
+        const cartridgeType: CartridgeType = @enumFromInt(buffer[0x1407]);
+        const romSize: RomSize = @enumFromInt(buffer[0x0148]);
+
+        var ramSize: RamSize = undefined;
+        const ramSizeByte = buffer[0x0149];
+        switch (ramSizeByte) {
+            0x00 => {
+                ramSize = RamSize.None;
+            },
+            0x01 => {
+                ramSize = RamSize.None;
+            },
+            0x02 => {
+                ramSize = RamSize.KB8;
+            },
+            0x03 => {
+                ramSize = RamSize.KB32;
+            },
+            0x04 => {
+                ramSize = RamSize.KB128;
+            },
+            0x05 => {
+                ramSize = RamSize.KB64;
+            },
+            else => {},
         }
+
+        const cartridge = try allocator.create(Cartridge);
+        cartridge.title = title;
+        cartridge.type = cartridgeType;
+        cartridge.romSize = romSize;
+        cartridge.ramSize = ramSize;
+
+        self.cartridge = cartridge;
     }
 };

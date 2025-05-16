@@ -1,4 +1,4 @@
-const CartridgeType = enum {
+pub const CartridgeType = enum {
     ROMOnly,
     MBC1,
     MBC2,
@@ -7,7 +7,7 @@ const CartridgeType = enum {
     MBC5,
 };
 
-const RomSize = enum {
+pub const RomSize = enum {
     KB_32,
     KB_64,
     KB_128,
@@ -19,7 +19,7 @@ const RomSize = enum {
     MB_8,
 };
 
-const RamSize = enum {
+pub const RamSize = enum {
     None,
     KB2,
     KB8,
@@ -28,7 +28,7 @@ const RamSize = enum {
     KB64,
 };
 
-const Cartridge = struct {
+pub const Cartridge = struct {
     title: []const u8,
     type: CartridgeType,
     romSize: RomSize,
