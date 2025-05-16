@@ -35,18 +35,18 @@ pub const Bus = struct {
 
     // Timer functions
 
-    pub fn tickTimer(self: *Bus, mCycles: u32) void {
+    pub fn tickTimer(self: *Bus, tCycles: u32) void {
         // if there is a overflow delay decrement it and handle overflow
         if (self.timer.overflowDelay > 0) {
-            const toConsume = @min(self.timer.overflowDelay, mCycles);
+            const toConsume = @min(self.timer.overflowDelay, tCycles);
             self.timer.overflowDelay -= toConsume;
             if (self.timer.overflowDelay == 0) {
                 self.handleOverflow();
             }
         }
 
-        self.incrementTima(mCycles);
-        self.timer.sysCount +%= mCycles;
+        self.incrementTima(tCycles);
+        self.timer.sysCount +%= tCycles;
         self.updateDiv();
     }
 
@@ -130,6 +130,27 @@ pub const Bus = struct {
             return;
         }
 
+        // handle memory bank switching
+        if (address < 0x8000) {
+            switch (self.cartridge.type) {
+                CartridgeType.MBC1 => {
+                    switch (address) {
+                        0x0000...0x1FFF => {
+                            self.cartridge.ramEnabled = (value & 0x0F) == 0x0A;
+                        },
+                        0x2000...0x3FFF => {
+                            const bankSelect: u32 = @max(1, value & 0x1F);
+                            self.cartridge.bank = bankSelect;
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+
+            return;
+        }
+
         self.memory.write(address, value);
     }
 
@@ -163,7 +184,7 @@ pub const Bus = struct {
         // TODO - this will work for now for MBC1 but needs more thourough handling down the line since the buffer values
         // won't map on to the enums
         const title: []const u8 = self.memory.rom[0x0134..0x0143];
-        const cartridgeType: CartridgeType = @enumFromInt(self.memory.rom[0x1407]);
+        const cartridgeType: CartridgeType = @enumFromInt(self.memory.rom[0x147]);
         const romSize: RomSize = @enumFromInt(self.memory.rom[0x0148]);
 
         var ramSize: RamSize = undefined;
@@ -195,6 +216,7 @@ pub const Bus = struct {
         cartridge.type = cartridgeType;
         cartridge.romSize = romSize;
         cartridge.ramSize = ramSize;
+        cartridge.bank = 1;
 
         self.cartridge = cartridge;
     }

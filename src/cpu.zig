@@ -145,12 +145,12 @@ pub const Cpu = struct {
         // handle halting
         if (self.halted) {
             const haltCycles = 1;
-            self.bus.tickTimer(haltCycles);
+            self.bus.tickTimer(haltCycles * 4);
 
             // wake up on any enabled or pending interupt
             const interruptCycles = self.checkInterrputs();
             if (interruptCycles > 0) {
-                self.bus.tickTimer(interruptCycles);
+                self.bus.tickTimer(interruptCycles * 4);
             }
 
             return haltCycles + interruptCycles;
@@ -162,12 +162,12 @@ pub const Cpu = struct {
 
         // execute opcode
         const instructionCycles = self.executeOpcode(opcode);
-        self.bus.tickTimer(instructionCycles);
+        self.bus.tickTimer(instructionCycles * 4);
 
         // check for interupts
         const interruptCycles = self.checkInterrputs();
         if (interruptCycles > 0) {
-            self.bus.tickTimer(interruptCycles);
+            self.bus.tickTimer(interruptCycles * 4);
         }
 
         return instructionCycles + interruptCycles;

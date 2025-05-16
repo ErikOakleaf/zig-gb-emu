@@ -21,7 +21,7 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    try bus.loadCartrige("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
+    try bus.loadCartrige("tests/test_roms/cpu_instrs/individual/02-interrupts.gb", allocator);
 
     // setup cpu
     var cpu: Cpu = undefined;
