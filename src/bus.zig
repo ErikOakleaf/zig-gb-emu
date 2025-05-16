@@ -139,6 +139,14 @@ pub const Bus = struct {
             return 0x90;
         }
 
+        // handle reading from switching rom banks
+        if (address < 0x8000 and address > 0x3FFF) {
+            if (self.cartridge.type != CartridgeType.ROMOnly) {
+                const memoryBank = self.cartridge.bank;
+                return self.memory.rom[memoryBank * 0x4000 + (address - 0x4000)];
+            }
+        }
+
         return self.memory.read(address);
     }
 
@@ -148,27 +156,18 @@ pub const Bus = struct {
 
         const fileSize = try file.getEndPos();
 
-        const buffer = try allocator.alloc(u8, fileSize);
-        defer allocator.free(buffer);
+        self.memory.rom = try allocator.alloc(u8, fileSize);
 
-        const bytesRead = try file.readAll(buffer);
-
-        // Verify we read the entire file
-        // TODO - might remove this later is it really doing anything should readALl not return a error ?
-        if (bytesRead != fileSize) {
-            // Handle error: didn't read entire file
-            allocator.free(buffer);
-            return error.IncompleteRead;
-        }
+        _ = try file.readAll(self.memory.rom);
 
         // TODO - this will work for now for MBC1 but needs more thourough handling down the line since the buffer values
         // won't map on to the enums
-        const title: []const u8 = buffer[0x0134..0x0143];
-        const cartridgeType: CartridgeType = @enumFromInt(buffer[0x1407]);
-        const romSize: RomSize = @enumFromInt(buffer[0x0148]);
+        const title: []const u8 = self.memory.rom[0x0134..0x0143];
+        const cartridgeType: CartridgeType = @enumFromInt(self.memory.rom[0x1407]);
+        const romSize: RomSize = @enumFromInt(self.memory.rom[0x0148]);
 
         var ramSize: RamSize = undefined;
-        const ramSizeByte = buffer[0x0149];
+        const ramSizeByte = self.memory.rom[0x0149];
         switch (ramSizeByte) {
             0x00 => {
                 ramSize = RamSize.None;
@@ -198,5 +197,9 @@ pub const Bus = struct {
         cartridge.ramSize = ramSize;
 
         self.cartridge = cartridge;
+    }
+
+    pub fn deinitCartridge(self: *Bus, allocator: std.mem.Allocator) !void {
+        allocator.free(self.cartridge);
     }
 };

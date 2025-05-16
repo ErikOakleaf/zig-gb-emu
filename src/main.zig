@@ -27,13 +27,13 @@ pub fn main() !void {
     var cpu: Cpu = undefined;
     try cpu.init(&bus);
 
-    var totalMCycles: u32 = 0;
+    // var totalMCycles: u32 = 0;
     // const T_CYCLES_PER_FRAME: u32 = 70224;
 
     while (true) {
-        const mCycles = cpu.tick();
-        totalMCycles += mCycles;
+        _ = cpu.tick();
+        // totalMCycles += mCycles;
     }
 
-    std.debug.print("{d}", .{totalMCycles});
+    // std.debug.print("{d}", .{totalMCycles});
 }

@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub const Memory = struct {
-    rom: [0x8000]u8,
+    rom: []u8,
     vram: [0x2000]u8,
     eram: [0x2000]u8,
     wram: [0x2000]u8,
@@ -83,7 +83,6 @@ pub const Memory = struct {
     pub fn init(self: *Memory) void {
         // set every byte of each array to 0
 
-        @memset(self.rom[0..], 0);
         @memset(self.vram[0..], 0);
         @memset(self.eram[0..], 0);
         @memset(self.wram[0..], 0);

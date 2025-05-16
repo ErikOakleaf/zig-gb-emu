@@ -34,5 +34,5 @@ pub const Cartridge = struct {
     romSize: RomSize,
     ramSize: RamSize,
     ramEnabled: bool,
-    bank: u8,
+    bank: usize,
 };
