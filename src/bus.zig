@@ -1,4 +1,5 @@
 const std = @import("std");
+const fs = std.fs;
 const Memory = @import("memory.zig").Memory;
 const Timer = @import("timer.zig").Timer;
 
@@ -131,5 +132,28 @@ pub const Bus = struct {
         }
 
         return self.memory.read(address);
+    }
+
+    pub fn loadCartrige(self: *Bus, path: []const u8, allocator: std.mem.Allocator) !void {
+        var file = try fs.cwd().openFile(path, .{});
+        defer file.close();
+
+        const fileSize = try file.getEndPos();
+
+        const buffer = try allocator.alloc(u8, fileSize);
+        defer allocator.free(buffer);
+
+        const bytesRead = try file.readAll(buffer);
+
+        // Verify we read the entire file
+        if (bytesRead != fileSize) {
+            // Handle error: didn't read entire file
+            allocator.free(buffer);
+            return error.IncompleteRead;
+        }
+
+        for (0..bytesRead) |i| {
+            self.memory.rom[i] = buffer[i];
+        }
     }
 };

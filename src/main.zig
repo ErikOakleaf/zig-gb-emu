@@ -5,9 +5,6 @@ const Timer = @import("timer.zig").Timer;
 const Bus = @import("bus.zig").Bus;
 
 pub fn main() !void {
-    // setup general purpose allocator
-    // TODO - remove this later since you can probably init everything here and then attach it to the cpu because the tests don't matter that much anymore
-
     // setup memory
     var memory: Memory = undefined;
 
@@ -18,6 +15,14 @@ pub fn main() !void {
     var bus: Bus = undefined;
     bus.init(&memory, &timer);
 
+    // load cartrige
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const allocator = gpa.allocator();
+
+    try bus.loadCartrige("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
+
     // setup cpu
     var cpu: Cpu = undefined;
     try cpu.init(&bus);
@@ -25,7 +30,7 @@ pub fn main() !void {
     var totalMCycles: u32 = 0;
     // const T_CYCLES_PER_FRAME: u32 = 70224;
 
-    while (totalMCycles < 100000000) {
+    while (true) {
         const mCycles = cpu.tick();
         totalMCycles += mCycles;
     }
