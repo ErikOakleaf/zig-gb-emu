@@ -1,6 +1,6 @@
 const std = @import("std");
-const Bus = @import("bus.zig").Bus;
 const math = std.math;
+const Bus = @import("bus.zig").Bus;
 
 pub const OP_CYCLES = [_]u8{
     // 1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -82,18 +82,63 @@ pub const Cpu = struct {
     pub fn init(self: *Cpu, bus: *Bus) !void {
         self.bus = bus;
 
-        self.a = 0;
-        self.f = 0;
-        self.b = 0;
-        self.c = 0;
-        self.d = 0;
-        self.e = 0;
-        self.h = 0;
-        self.l = 0;
-        self.pc = 0;
-        self.sp = 0;
+        self.a = 0x01;
+        self.f = 0x90;
+        self.b = 0x00;
+        self.c = 0x13;
+        self.d = 0x00;
+        self.e = 0xD8;
+        self.h = 0x01;
+        self.l = 0x4D;
+        self.pc = 0x0100;
+        self.sp = 0xFFFE;
         self.ime = false;
         self.halted = false;
+
+        // initialize memory registers
+
+        self.bus.write(0xFF00, 0xCF); // P1
+        self.bus.write(0xFF01, 0x00); // SB
+        self.bus.write(0xFF02, 0x7E); // SC
+        self.bus.write(0xFF04, 0xAB); // DIV
+        self.bus.write(0xFF05, 0x00); // TIMA
+        self.bus.write(0xFF06, 0x00); // TMA
+        self.bus.write(0xFF07, 0xF8); // TAC
+        self.bus.write(0xFF0F, 0xE1); // IF
+        self.bus.write(0xFF10, 0x80); // NR10
+        self.bus.write(0xFF11, 0xBF); // NR11
+        self.bus.write(0xFF12, 0xF3); // NR12
+        self.bus.write(0xFF13, 0xFF); // NR13
+        self.bus.write(0xFF14, 0xBF); // NR14
+        self.bus.write(0xFF16, 0x3F); // NR21
+        self.bus.write(0xFF17, 0x00); // NR22
+        self.bus.write(0xFF18, 0xFF); // NR23
+        self.bus.write(0xFF19, 0xBF); // NR24
+        self.bus.write(0xFF1A, 0x7F); // NR30
+        self.bus.write(0xFF1B, 0xFF); // NR31
+        self.bus.write(0xFF1C, 0x9F); // NR32
+        self.bus.write(0xFF1D, 0xFF); // NR33
+        self.bus.write(0xFF1E, 0xBF); // NR34
+        self.bus.write(0xFF20, 0xFF); // NR41
+        self.bus.write(0xFF21, 0x00); // NR42
+        self.bus.write(0xFF22, 0x00); // NR43
+        self.bus.write(0xFF23, 0xBF); // NR44
+        self.bus.write(0xFF24, 0x77); // NR50
+        self.bus.write(0xFF25, 0xF3); // NR51
+        self.bus.write(0xFF26, 0xF1); // NR52
+        self.bus.write(0xFF40, 0x91); // LCDC
+        self.bus.write(0xFF41, 0x85); // STAT
+        self.bus.write(0xFF42, 0x00); // SCY
+        self.bus.write(0xFF43, 0x00); // SCX
+        self.bus.write(0xFF44, 0x00); // LY
+        self.bus.write(0xFF45, 0x00); // LYC
+        self.bus.write(0xFF46, 0xFF); // DMA
+        self.bus.write(0xFF47, 0xFC); // BGP
+        self.bus.write(0xFF48, 0x07); // OBP0
+        self.bus.write(0xFF49, 0x07); // OBP1
+        self.bus.write(0xFF4A, 0x00); // WY
+        self.bus.write(0xFF4B, 0x00); // WX
+        self.bus.write(0xFFFF, 0x00); // IE
     }
 
     pub fn tick(self: *Cpu) u8 {
@@ -121,7 +166,9 @@ pub const Cpu = struct {
 
         // check for interupts
         const interruptCycles = self.checkInterrputs();
-        self.bus.tickTimer(interruptCycles);
+        if (interruptCycles > 0) {
+            self.bus.tickTimer(interruptCycles);
+        }
 
         return instructionCycles + interruptCycles;
     }
