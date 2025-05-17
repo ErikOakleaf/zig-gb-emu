@@ -307,7 +307,7 @@ pub const Cpu = struct {
                     self.clearFlag(Flag.h);
                 }
 
-                value += 1;
+                value +%= 1;
 
                 if (value == 0) {
                     self.setFlag(Flag.z);
@@ -355,7 +355,7 @@ pub const Cpu = struct {
                     self.clearFlag(Flag.h);
                 }
 
-                value -= 1;
+                value -%= 1;
 
                 if (value == 0) {
                     self.setFlag(Flag.z);
@@ -2214,19 +2214,28 @@ pub const Cpu = struct {
 
     fn checkInterrputs(self: *Cpu) u8 {
         const pending = self.bus.read(0xFFFF) & self.bus.read(0xFF0F) & 0x1F;
-        if (pending != 0 and self.ime) {
-            if ((pending & 1 != 0)) {
-                self.handleInterrupt(InterruptType.VBlank);
-            } else if ((pending & (1 << 1) != 0)) {
-                self.handleInterrupt(InterruptType.LCD);
-            } else if ((pending & (1 << 2) != 0)) {
-                self.handleInterrupt(InterruptType.Timer);
-            } else if ((pending & (1 << 3) != 0)) {
-                self.handleInterrupt(InterruptType.Serial);
-            } else if ((pending & (1 << 4) != 0)) {
-                self.handleInterrupt(InterruptType.Joypad);
+        if (pending != 0) {
+            // check for halt condition if halted and a pending interupt is coming exit halt
+            if (self.halted) {
+                self.halted = false;
             }
-            return 20;
+
+            // process interrupt if ime is enabled
+            if (self.ime) {
+                if ((pending & 1 != 0)) {
+                    self.handleInterrupt(InterruptType.VBlank);
+                } else if ((pending & (1 << 1) != 0)) {
+                    self.handleInterrupt(InterruptType.LCD);
+                } else if ((pending & (1 << 2) != 0)) {
+                    self.handleInterrupt(InterruptType.Timer);
+                } else if ((pending & (1 << 3) != 0)) {
+                    self.handleInterrupt(InterruptType.Serial);
+                } else if ((pending & (1 << 4) != 0)) {
+                    self.handleInterrupt(InterruptType.Joypad);
+                }
+
+                return 20;
+            }
         }
         return 0;
     }

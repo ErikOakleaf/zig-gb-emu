@@ -132,6 +132,7 @@ pub const Bus = struct {
 
         // handle memory bank switching
         if (address < 0x8000) {
+            std.debug.print("inside the MBC switching write part\n", .{});
             switch (self.cartridge.type) {
                 CartridgeType.MBC1 => {
                     switch (address) {
@@ -139,8 +140,12 @@ pub const Bus = struct {
                             self.cartridge.ramEnabled = (value & 0x0F) == 0x0A;
                         },
                         0x2000...0x3FFF => {
-                            const bankSelect: u32 = @max(1, value & 0x1F);
+                            const bankSelect: usize = @max(1, value & 0x1F);
                             self.cartridge.bank = bankSelect;
+                            std.debug.print("current MBC bank = {d}: value given = {d}\n", .{ self.cartridge.bank, value });
+                        },
+                        0x4000...0x5FFF => {
+                            std.debug.print("higher bits selected", .{});
                         },
                         else => {},
                     }
@@ -214,6 +219,8 @@ pub const Bus = struct {
         const cartridge = try allocator.create(Cartridge);
         cartridge.title = title;
         cartridge.type = cartridgeType;
+        // for debugging here
+        std.debug.print("cartridgeType: {s}\n", .{@tagName(cartridgeType)});
         cartridge.romSize = romSize;
         cartridge.ramSize = ramSize;
         cartridge.bank = 1;
