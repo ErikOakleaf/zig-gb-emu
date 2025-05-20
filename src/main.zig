@@ -34,8 +34,17 @@ pub fn main() !void {
     _ = c.SDL_Init(c.SDL_INIT_VIDEO);
     defer c.SDL_Quit();
 
-    while (true) {
-        _ = cpu.tick();
-        // totalMCycles += mCycles;
+    const window = c.SDL_CreateWindow("Gameboy Emulator", 166, 144, c.SDL_WINDOW_OPENGL);
+    defer c.SDL_DestroyWindow(window);
+
+    mainloop: while (true) {
+        var sdl_event: c.SDL_Event = undefined;
+
+        while (c.SDL_PollEvent(&sdl_event)) {
+            switch (sdl_event.type) {
+                c.SDL_EVENT_QUIT => break :mainloop,
+                else => {},
+            }
+        }
     }
 }
