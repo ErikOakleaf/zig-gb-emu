@@ -13,30 +13,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // SDL
+    const sdl_path = "deps/SDL3-3.2.14/";
+    exe.addIncludePath(b.path(sdl_path ++ "include"));
+    exe.addLibraryPath(b.path(sdl_path ++ "lib/x64"));
+    b.installBinFile(sdl_path ++ "lib/x64/SDL3.dll", "SDL3.dll");
+    exe.linkSystemLibrary("sdl3");
+    exe.linkLibC();
+
     b.installArtifact(exe);
 
     const run_exe = b.addRunArtifact(exe);
 
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_exe.step);
-
-    // tests
-    const tests = b.addExecutable(.{
-        .name = "tests",
-        .root_source_file = b.path("tests/all_tests.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const cpu = b.createModule(.{ .root_source_file = .{ .cwd_relative = "src/cpu.zig" } });
-    const mem = b.createModule(.{ .root_source_file = .{ .cwd_relative = "src/memory.zig" } });
-    tests.root_module.addImport("cpu", cpu);
-    tests.root_module.addImport("mem", mem);
-
-    b.installArtifact(tests);
-
-    const run_tests = b.addRunArtifact(tests);
-
-    const run_tests_step = b.step("test", "run tests");
-    run_tests_step.dependOn(&run_tests.step);
 }

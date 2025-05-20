@@ -56,7 +56,7 @@ pub const Bus = struct {
         self.memory.write(0xFF04, newDiv);
     }
 
-    fn incrementTima(self: *Bus, mCycles: u32) void {
+    fn incrementTima(self: *Bus, tCycles: u32) void {
         const TAC: u8 = self.memory.read(0xFF07);
         const enable: bool = (TAC & 0b100) > 0;
         const clockSelect: u2 = @truncate(TAC);
@@ -64,7 +64,7 @@ pub const Bus = struct {
         if (enable) {
             const bit = BITS[@as(usize, clockSelect)];
 
-            const fallingEdges: u8 = checkFallingEdges(self.timer.sysCount, mCycles, bit);
+            const fallingEdges: u8 = checkFallingEdges(self.timer.sysCount, tCycles, bit);
 
             // read the current time
             const currentValue: u8 = self.memory.read(0xFF05);
@@ -73,18 +73,19 @@ pub const Bus = struct {
             if (currentValue >= 0xFF - fallingEdges) {
                 // there is a 4‑cycle delay between TIMA overflow and interrupt
                 self.timer.overflowDelay = 4;
+                self.memory.write(0xFF05, 0x00); // TIMA reads as 0 during this delay period
             } else {
                 self.memory.write(0xFF05, currentValue + fallingEdges);
             }
         }
     }
 
-    fn checkFallingEdges(old: u32, mCycles: u32, bit: u8) u8 {
+    fn checkFallingEdges(old: u32, tCycles: u32, bit: u8) u8 {
         // this is equivalent to 2^(bit + 1)
         const period: u32 = std.math.shl(u32, 1, bit + 1); // one full cycle for the given bit
         const halfPeriod: u32 = std.math.shl(u32, 1, bit); // half a cycle for the given bit
         const oldPosition = old & (period - 1); // old % period. This is were we are right now in a cycle
-        const total = oldPosition + mCycles;
+        const total = oldPosition + tCycles;
         const newPosition = total & (period - 1);
 
         // calculate the full wraps. Simple enough just see how many times the total value fits in the period
@@ -132,7 +133,6 @@ pub const Bus = struct {
 
         // handle memory bank switching
         if (address < 0x8000) {
-            std.debug.print("inside the MBC switching write part\n", .{});
             switch (self.cartridge.type) {
                 CartridgeType.MBC1 => {
                     switch (address) {
@@ -142,7 +142,7 @@ pub const Bus = struct {
                         0x2000...0x3FFF => {
                             const bankSelect: usize = @max(1, value & 0x1F);
                             self.cartridge.bank = bankSelect;
-                            std.debug.print("current MBC bank = {d}: value given = {d}\n", .{ self.cartridge.bank, value });
+                            std.debug.print("memory bank {d} in use selected bank: {d}", .{ self.cartridge.bank, bankSelect });
                         },
                         0x4000...0x5FFF => {
                             std.debug.print("higher bits selected", .{});
@@ -220,7 +220,7 @@ pub const Bus = struct {
         cartridge.title = title;
         cartridge.type = cartridgeType;
         // for debugging here
-        std.debug.print("cartridgeType: {s}\n", .{@tagName(cartridgeType)});
+        // std.debug.print("cartridgeType: {s}\n", .{@tagName(cartridgeType)});
         cartridge.romSize = romSize;
         cartridge.ramSize = ramSize;
         cartridge.bank = 1;
