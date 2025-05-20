@@ -3,6 +3,7 @@ const Memory = @import("memory.zig").Memory;
 const Cpu = @import("cpu.zig").Cpu;
 const Timer = @import("timer.zig").Timer;
 const Bus = @import("bus.zig").Bus;
+const Renderer = @import("renderer.zig").Renderer;
 const c = @cImport({
     @cInclude("SDL3/SDL.h");
 });
@@ -25,17 +26,16 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     try bus.loadCartrige("tests/test_roms/instr_timing/instr_timing.gb", allocator);
+    defer bus.deinitCartridge(allocator);
 
     // setup cpu
     var cpu: Cpu = undefined;
     try cpu.init(&bus);
 
-    // setup sdl
-    _ = c.SDL_Init(c.SDL_INIT_VIDEO);
-    defer c.SDL_Quit();
-
-    const window = c.SDL_CreateWindow("Gameboy Emulator", 166, 144, c.SDL_WINDOW_OPENGL);
-    defer c.SDL_DestroyWindow(window);
+    // setup sdl and renderer
+    var renderer: Renderer = undefined;
+    try renderer.init(5);
+    defer renderer.deinit();
 
     mainloop: while (true) {
         var sdl_event: c.SDL_Event = undefined;

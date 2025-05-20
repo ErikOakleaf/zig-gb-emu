@@ -228,7 +228,8 @@ pub const Bus = struct {
         self.cartridge = cartridge;
     }
 
-    pub fn deinitCartridge(self: *Bus, allocator: std.mem.Allocator) !void {
-        allocator.free(self.cartridge);
+    pub fn deinitCartridge(self: *Bus, allocator: std.mem.Allocator) void {
+        allocator.destroy(self.cartridge);
+        allocator.free(self.memory.rom);
     }
 };
