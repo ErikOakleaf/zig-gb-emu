@@ -8,6 +8,7 @@ pub const Timer = struct {
     tima: u8, // 0xFF05
     tma: u8, // 0xFF06
     tac: u8, // 0xFF07
+    flagRegister: *u8,
 
     pub fn init(self: *Timer) void {
         self.sysCount = 0;
@@ -18,7 +19,7 @@ pub const Timer = struct {
         self.tac = 0;
     }
 
-    pub fn tick(self: *Timer, tCycles: u32) bool {
+    pub fn tick(self: *Timer, tCycles: u32) void {
         self.sysCount +%= tCycles;
         self.updateDiv();
 
@@ -28,14 +29,12 @@ pub const Timer = struct {
             self.overflowDelay -= toConsume;
             if (self.overflowDelay == 0) {
                 self.handleOverflow();
-                return true;
+                return;
             }
-            return false;
+            return;
         }
 
         self.incrementTima(tCycles);
-
-        return false;
     }
 
     fn updateDiv(self: *Timer) void {
@@ -91,5 +90,6 @@ pub const Timer = struct {
     fn handleOverflow(self: *Timer) void {
         // set TIMA to TMA
         self.tima = self.tma;
+        self.flagRegister.* |= 0b100;
     }
 };

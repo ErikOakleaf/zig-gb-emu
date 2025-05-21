@@ -18,20 +18,23 @@ pub const Bus = struct {
 
     pub fn init(self: *Bus, memory: *Memory, timer: *Timer, cartridge: *Cartridge, ppu: *PPU) void {
         self.memory = memory;
-        self.timer = timer;
-        self.ppu = ppu;
-        self.cartridge = cartridge;
         self.memory.init();
-        self.ppu.init();
+
+        self.timer = timer;
         self.timer.init();
+        self.timer.flagRegister = &self.memory.io[0x0F];
+
+        self.ppu = ppu;
+        self.ppu.flagRegister = &self.memory.io[0x0F];
+
+        self.cartridge = cartridge;
+        self.ppu.init();
     }
     // tick subsystems
 
     pub fn tick(self: *Bus, tCycles: u32) void {
         // request timer interupt if timer function returns true meaning overflow
-        if (self.timer.tick(tCycles)) {
-            self.memory.write(0xFF0F, self.memory.read(0xFF0F) | 0b100);
-        }
+        self.timer.tick(tCycles);
     }
 
     // MMU

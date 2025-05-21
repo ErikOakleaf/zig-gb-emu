@@ -15,6 +15,8 @@ pub const PPU = struct {
     wy: u8, // 0xFF4A
     wx: u8, // 0xFF4B
 
+    flagRegister: *u8, // reference to FF0F
+
     pub fn init(self: *PPU) void {
         @memset(self.vram[0..], 0);
         @memset(self.oam[0..], 0);
