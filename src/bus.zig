@@ -80,6 +80,7 @@ pub const Bus = struct {
                 self.timer.div = 0;
                 self.timer.sysCount = 0;
             },
+            // ppu memory registers
             0xFF05 => {
                 self.timer.tima = value;
             },
@@ -88,6 +89,42 @@ pub const Bus = struct {
             },
             0xFF07 => {
                 self.timer.tac = value;
+            },
+            0xFF40 => {
+                self.ppu.lcdc = value;
+            },
+            0xFF41 => {
+                self.ppu.stat = value;
+            },
+            0xFF42 => {
+                self.ppu.scy = value;
+            },
+            0xFF43 => {
+                self.ppu.scx = value;
+            },
+            0xFF44 => {
+                self.ppu.ly = value;
+            },
+            0xFF45 => {
+                self.ppu.lyc = value;
+            },
+            0xFF46 => {
+                self.ppu.dma = value;
+            },
+            0xFF47 => {
+                self.ppu.bgp = value;
+            },
+            0xFF48 => {
+                self.ppu.obp0 = value;
+            },
+            0xFF49 => {
+                self.ppu.obp1 = value;
+            },
+            0xFF4A => {
+                self.ppu.wy = value;
+            },
+            0xFF4B => {
+                self.ppu.wx = value;
             },
             else => {
                 self.memory.write(address, value);
@@ -128,9 +165,43 @@ pub const Bus = struct {
             0xFF07 => {
                 return self.timer.tac;
             },
+            // ppu memory registers
+            0xFF40 => {
+                return self.ppu.lcdc;
+            },
+            0xFF41 => {
+                return self.ppu.stat;
+            },
+            0xFF42 => {
+                return self.ppu.scy;
+            },
+            0xFF43 => {
+                return self.ppu.scx;
+            },
             0xFF44 => {
                 // TODO - for debbuging right now remove this later when the PPU is finished
                 return 0x90;
+            },
+            0xFF45 => {
+                return self.ppu.lyc;
+            },
+            0xFF46 => {
+                return self.ppu.dma;
+            },
+            0xFF47 => {
+                return self.ppu.bgp;
+            },
+            0xFF48 => {
+                return self.ppu.obp0;
+            },
+            0xFF49 => {
+                return self.ppu.obp1;
+            },
+            0xFF4A => {
+                return self.ppu.wy;
+            },
+            0xFF4B => {
+                return self.ppu.wx;
             },
             else => {
                 return self.memory.read(address);
