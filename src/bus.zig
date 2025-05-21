@@ -9,7 +9,7 @@ const RamSize = @import("cartridge.zig").RamSize;
 const PPU = @import("ppu.zig").PPU;
 
 // define constants
-const BITS: [4]u8 = .{ 9, 3, 5, 7 };
+// const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 
 pub const Bus = struct {
     memory: *Memory,
@@ -25,112 +25,21 @@ pub const Bus = struct {
         self.ppu = ppu;
         self.memory.init();
         self.ppu.init();
-        self.initTimer();
+        self.timer.init();
     }
+    // tick subsystems
 
-    pub fn initTimer(self: *Bus) void {
-        self.timer.sysCount = 0;
-
-        self.memory.write(0xFF04, 0);
-        self.memory.write(0xFF05, 0);
-        self.memory.write(0xFF06, 0);
-        self.memory.write(0xFF07, 0);
-    }
-
-    // Timer functions
-
-    pub fn tickTimer(self: *Bus, tCycles: u32) void {
-        // if there is a overflow delay decrement it and handle overflow
-        if (self.timer.overflowDelay > 0) {
-            const toConsume = @min(self.timer.overflowDelay, tCycles);
-            self.timer.overflowDelay -= toConsume;
-            if (self.timer.overflowDelay == 0) {
-                self.handleOverflow();
-            }
+    pub fn tick(self: *Bus, tCycles: u32) void {
+        // request timer interupt if timer function returns true meaning overflow
+        if (self.timer.tick(tCycles)) {
+            self.memory.write(0xFF0F, self.memory.read(0xFF0F) | 0b100);
         }
-
-        self.incrementTima(tCycles);
-        self.timer.sysCount +%= tCycles;
-        self.updateDiv();
-    }
-
-    fn updateDiv(self: *Bus) void {
-        // update the div register to be the high byte of the sysCount
-        const newDiv: u8 = @truncate(self.timer.sysCount >> 8);
-        self.memory.write(0xFF04, newDiv);
-    }
-
-    fn incrementTima(self: *Bus, tCycles: u32) void {
-        const TAC: u8 = self.memory.read(0xFF07);
-        const enable: bool = (TAC & 0b100) > 0;
-        const clockSelect: u2 = @truncate(TAC);
-
-        if (enable) {
-            const bit = BITS[@as(usize, clockSelect)];
-
-            const fallingEdges: u8 = checkFallingEdges(self.timer.sysCount, tCycles, bit);
-
-            // read the current time
-            const currentValue: u8 = self.memory.read(0xFF05);
-
-            // check for overflow
-            if (currentValue >= 0xFF - fallingEdges) {
-                // there is a 4‑cycle delay between TIMA overflow and interrupt
-                self.timer.overflowDelay = 4;
-                self.memory.write(0xFF05, 0x00); // TIMA reads as 0 during this delay period
-            } else {
-                self.memory.write(0xFF05, currentValue + fallingEdges);
-            }
-        }
-    }
-
-    fn checkFallingEdges(old: u32, tCycles: u32, bit: u8) u8 {
-        // this is equivalent to 2^(bit + 1)
-        const period: u32 = std.math.shl(u32, 1, bit + 1); // one full cycle for the given bit
-        const halfPeriod: u32 = std.math.shl(u32, 1, bit); // half a cycle for the given bit
-        const oldPosition = old & (period - 1); // old % period. This is were we are right now in a cycle
-        const total = oldPosition + tCycles;
-        const newPosition = total & (period - 1);
-
-        // calculate the full wraps. Simple enough just see how many times the total value fits in the period
-        const fullWraps: u8 = @truncate(total / period);
-
-        // if the old position is lagrer than a half period and the new position is smaller it means we have a partial
-        // wrap around since they combined become >= one period
-        var partialWraps: u8 = 0;
-        if (oldPosition >= halfPeriod and newPosition < halfPeriod) {
-            partialWraps = 1;
-        }
-
-        return fullWraps + partialWraps;
-    }
-
-    fn handleOverflow(self: *Bus) void {
-        // set TIMA to TMA
-        self.memory.write(0xFF05, self.memory.read(0xFF06));
-
-        // request timer interupt
-        self.memory.write(0xFF0F, self.memory.read(0xFF0F) | 0b100);
     }
 
     // MMU
 
     pub fn write(self: *Bus, address: u16, value: u8) void {
         switch (address) {
-            0xFF04 => {
-                // if write is done to div register [0xFF04] always reset it
-                self.memory.write(0xFF04, 0);
-                self.timer.sysCount = 0;
-            },
-            0xFF02 => {
-                // TODO - check this implementation more thourgouhly later now for debugging serial transfer
-                if ((value & 0x80) != 0) {
-                    const serialBuffer = self.memory.read(0xFF01);
-                    std.debug.print("{c}", .{serialBuffer});
-
-                    self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
-                }
-            },
             0x0000...0x7FFF => {
                 // memory bank switching TODO - maket his work completely and make it into helper functions
                 switch (self.cartridge.type) {
@@ -159,6 +68,29 @@ pub const Bus = struct {
             0xFE00...0xFE9F => {
                 self.ppu.oam[address - 0xFE00] = value;
             },
+            0xFF02 => {
+                // TODO - check this implementation more thourgouhly later now for debugging serial transfer
+                if ((value & 0x80) != 0) {
+                    const serialBuffer = self.memory.read(0xFF01);
+                    std.debug.print("{c}", .{serialBuffer});
+
+                    self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
+                }
+            },
+            0xFF04 => {
+                // if write is done to div register [0xFF04] always reset it
+                self.timer.div = 0;
+                self.timer.sysCount = 0;
+            },
+            0xFF05 => {
+                self.timer.tima = value;
+            },
+            0xFF06 => {
+                self.timer.tma = value;
+            },
+            0xFF07 => {
+                self.timer.tac = value;
+            },
             else => {
                 self.memory.write(address, value);
             },
@@ -184,6 +116,18 @@ pub const Bus = struct {
             },
             0xFE00...0xFE9F => {
                 return self.ppu.oam[address - 0xFE00];
+            },
+            0xFF04 => {
+                return self.timer.div;
+            },
+            0xFF05 => {
+                return self.timer.tima;
+            },
+            0xFF06 => {
+                return self.timer.tma;
+            },
+            0xFF07 => {
+                return self.timer.tac;
             },
             else => {
                 return self.memory.read(address);
