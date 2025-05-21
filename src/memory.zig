@@ -2,10 +2,8 @@ const std = @import("std");
 
 pub const Memory = struct {
     rom: []u8,
-    vram: [0x2000]u8,
     eram: [0x2000]u8,
     wram: [0x2000]u8,
-    oam: [0xA0]u8,
     io: [0x80]u8,
     hram: [0x7F]u8,
     ie: u8,
@@ -14,9 +12,6 @@ pub const Memory = struct {
         switch (address) {
             0x00...0x7FFF => {
                 return self.rom[address];
-            },
-            0x8000...0x9FFF => {
-                return self.vram[address - 0x8000];
             },
             0xA000...0xBFFF => {
                 return self.eram[address - 0xA000];
@@ -27,9 +22,6 @@ pub const Memory = struct {
             // echo ram so mirror C000-DDFF here
             0xE000...0xFDFF => {
                 return self.wram[address - 0xE000];
-            },
-            0xFE00...0xFE9F => {
-                return self.oam[address - 0xFE00];
             },
             0xFEA0...0xFEFF => {
                 return 0xFF;
@@ -43,6 +35,9 @@ pub const Memory = struct {
             0xFFFF => {
                 return self.ie;
             },
+            else => {
+                return 0;
+            },
         }
     }
 
@@ -50,9 +45,6 @@ pub const Memory = struct {
         switch (address) {
             0x00...0x7FFF => {
                 // cannot write read only memory
-            },
-            0x8000...0x9FFF => {
-                self.vram[address - 0x8000] = value;
             },
             0xA000...0xBFFF => {
                 self.eram[address - 0xA000] = value;
@@ -63,9 +55,6 @@ pub const Memory = struct {
             // echo ram so mirror C000-DDFF here
             0xE000...0xFDFF => {
                 self.wram[address - 0xE000] = value;
-            },
-            0xFE00...0xFE9F => {
-                self.oam[address - 0xFE00] = value;
             },
             0xFF00...0xFF7F => {
                 self.io[address - 0xFF00] = value;
@@ -83,10 +72,8 @@ pub const Memory = struct {
     pub fn init(self: *Memory) void {
         // set every byte of each array to 0
 
-        @memset(self.vram[0..], 0);
         @memset(self.eram[0..], 0);
         @memset(self.wram[0..], 0);
-        @memset(self.oam[0..], 0);
         @memset(self.io[0..], 0);
         @memset(self.hram[0..], 0);
         self.ie = 0;

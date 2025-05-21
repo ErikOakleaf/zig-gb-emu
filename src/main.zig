@@ -4,6 +4,7 @@ const Cpu = @import("cpu.zig").Cpu;
 const Timer = @import("timer.zig").Timer;
 const Bus = @import("bus.zig").Bus;
 const Renderer = @import("renderer.zig").Renderer;
+const PPU = @import("ppu.zig").PPU;
 const c = @cImport({
     @cInclude("SDL3/SDL.h");
 });
@@ -15,9 +16,12 @@ pub fn main() !void {
     // setup timer
     var timer: Timer = undefined;
 
+    // setup ppu
+    var ppu: PPU = undefined;
+
     // setup bus
     var bus: Bus = undefined;
-    bus.init(&memory, &timer);
+    bus.init(&memory, &timer, &ppu);
 
     // load cartrige
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -25,7 +29,7 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    try bus.loadCartrige("tests/test_roms/instr_timing/instr_timing.gb", allocator);
+    try bus.loadCartrige("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
     defer bus.deinitCartridge(allocator);
 
     // setup cpu
@@ -38,6 +42,7 @@ pub fn main() !void {
     defer renderer.deinit();
 
     mainloop: while (true) {
+        _ = cpu.tick();
         var sdl_event: c.SDL_Event = undefined;
 
         while (c.SDL_PollEvent(&sdl_event)) {
