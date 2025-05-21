@@ -1,7 +1,6 @@
 const std = @import("std");
 
 pub const Memory = struct {
-    rom: []u8,
     eram: [0x2000]u8,
     wram: [0x2000]u8,
     io: [0x80]u8,
@@ -10,9 +9,6 @@ pub const Memory = struct {
 
     pub fn read(self: *Memory, address: u16) u8 {
         switch (address) {
-            0x00...0x7FFF => {
-                return self.rom[address];
-            },
             0xA000...0xBFFF => {
                 return self.eram[address - 0xA000];
             },
@@ -43,9 +39,6 @@ pub const Memory = struct {
 
     pub fn write(self: *Memory, address: u16, value: u8) void {
         switch (address) {
-            0x00...0x7FFF => {
-                // cannot write read only memory
-            },
             0xA000...0xBFFF => {
                 self.eram[address - 0xA000] = value;
             },

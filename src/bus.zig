@@ -8,9 +8,6 @@ const RomSize = @import("cartridge.zig").RomSize;
 const RamSize = @import("cartridge.zig").RamSize;
 const PPU = @import("ppu.zig").PPU;
 
-// define constants
-// const BITS: [4]u8 = .{ 9, 3, 5, 7 };
-
 pub const Bus = struct {
     memory: *Memory,
     timer: *Timer,
@@ -19,10 +16,11 @@ pub const Bus = struct {
 
     // Init functions
 
-    pub fn init(self: *Bus, memory: *Memory, timer: *Timer, ppu: *PPU) void {
+    pub fn init(self: *Bus, memory: *Memory, timer: *Timer, cartridge: *Cartridge, ppu: *PPU) void {
         self.memory = memory;
         self.timer = timer;
         self.ppu = ppu;
+        self.cartridge = cartridge;
         self.memory.init();
         self.ppu.init();
         self.timer.init();
@@ -41,7 +39,7 @@ pub const Bus = struct {
     pub fn write(self: *Bus, address: u16, value: u8) void {
         switch (address) {
             0x0000...0x7FFF => {
-                // memory bank switching TODO - maket his work completely and make it into helper functions
+                // memory bank switching TODO - make this work completely and make it into helper functions
                 switch (self.cartridge.type) {
                     CartridgeType.MBC1 => {
                         switch (address) {
@@ -51,10 +49,10 @@ pub const Bus = struct {
                             0x2000...0x3FFF => {
                                 const bankSelect: usize = @max(1, value & 0x1F);
                                 self.cartridge.bank = bankSelect;
-                                std.debug.print("memory bank {d} in use selected bank: {d}", .{ self.cartridge.bank, bankSelect });
+                                // std.debug.print("memory bank {d} in use selected bank: {d}", .{ self.cartridge.bank, bankSelect });
                             },
                             0x4000...0x5FFF => {
-                                std.debug.print("higher bits selected", .{});
+                                // std.debug.print("higher bits selected", .{});
                             },
                             else => {},
                         }
@@ -99,16 +97,17 @@ pub const Bus = struct {
 
     pub fn read(self: *Bus, address: u16) u8 {
         switch (address) {
-            0xFF44 => {
-                // TODO - for debbuging right now remove this later when the PPU is finished
-                return 0x90;
+            0x0000...0x3FFF => {
+                return self.cartridge.rom[address];
             },
             0x4000...0x7FFF => {
+                // TODO - make this better later and expand it to more cartridge types and use helper functions
+                // to maintain readability
                 if (self.cartridge.type != CartridgeType.ROMOnly) {
                     const memoryBank = self.cartridge.bank;
-                    return self.memory.rom[memoryBank * 0x4000 + (address - 0x4000)];
+                    return self.cartridge.rom[memoryBank * 0x4000 + (address - 0x4000)];
                 } else {
-                    return self.memory.read(address);
+                    return self.cartridge.rom[address];
                 }
             },
             0x8000...0x9FFF => {
@@ -129,66 +128,13 @@ pub const Bus = struct {
             0xFF07 => {
                 return self.timer.tac;
             },
+            0xFF44 => {
+                // TODO - for debbuging right now remove this later when the PPU is finished
+                return 0x90;
+            },
             else => {
                 return self.memory.read(address);
             },
         }
-    }
-
-    pub fn loadCartrige(self: *Bus, path: []const u8, allocator: std.mem.Allocator) !void {
-        var file = try fs.cwd().openFile(path, .{});
-        defer file.close();
-
-        const fileSize = try file.getEndPos();
-
-        self.memory.rom = try allocator.alloc(u8, fileSize);
-
-        _ = try file.readAll(self.memory.rom);
-
-        // TODO - this will work for now for MBC1 but needs more thourough handling down the line since the buffer values
-        // won't map on to the enums
-        const title: []const u8 = self.memory.rom[0x0134..0x0143];
-        const cartridgeType: CartridgeType = @enumFromInt(self.memory.rom[0x147]);
-        const romSize: RomSize = @enumFromInt(self.memory.rom[0x0148]);
-
-        var ramSize: RamSize = undefined;
-        const ramSizeByte = self.memory.rom[0x0149];
-        switch (ramSizeByte) {
-            0x00 => {
-                ramSize = RamSize.None;
-            },
-            0x01 => {
-                ramSize = RamSize.None;
-            },
-            0x02 => {
-                ramSize = RamSize.KB8;
-            },
-            0x03 => {
-                ramSize = RamSize.KB32;
-            },
-            0x04 => {
-                ramSize = RamSize.KB128;
-            },
-            0x05 => {
-                ramSize = RamSize.KB64;
-            },
-            else => {},
-        }
-
-        const cartridge = try allocator.create(Cartridge);
-        cartridge.title = title;
-        cartridge.type = cartridgeType;
-        // for debugging here
-        // std.debug.print("cartridgeType: {s}\n", .{@tagName(cartridgeType)});
-        cartridge.romSize = romSize;
-        cartridge.ramSize = ramSize;
-        cartridge.bank = 1;
-
-        self.cartridge = cartridge;
-    }
-
-    pub fn deinitCartridge(self: *Bus, allocator: std.mem.Allocator) void {
-        allocator.destroy(self.cartridge);
-        allocator.free(self.memory.rom);
     }
 };
