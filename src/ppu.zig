@@ -1,7 +1,7 @@
 pub const PPU = struct {
+    // memory
     vram: [0x2000]u8, // 0x8000 - 0x9FFF
     oam: [0xA0]u8, // 0xFE00 - 0xFE9F
-
     lcdc: u8, // 0xFF40
     stat: u8, // 0xFF41
     scy: u8, // 0xFF42
@@ -14,8 +14,17 @@ pub const PPU = struct {
     obp1: u8, // 0xFF49
     wy: u8, // 0xFF4A
     wx: u8, // 0xFF4B
-
     flagRegister: *u8, // reference to FF0F
+
+    // ppu fields
+    accumilator: u32,
+    currentLine: u8,
+    pixelBuffer: [160][144]u2,
+
+    // dma fields
+    dmaActive: bool,
+    dmaCycles: u8,
+    dmaSource: u16,
 
     pub fn init(self: *PPU) void {
         @memset(self.vram[0..], 0);
@@ -32,5 +41,9 @@ pub const PPU = struct {
         self.obp1 = 0;
         self.wy = 0;
         self.wx = 0;
+
+        self.dmaActive = false;
+        self.dmaCycles = 0;
+        self.dmaSource = 0;
     }
 };

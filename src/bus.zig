@@ -33,13 +33,21 @@ pub const Bus = struct {
     // tick subsystems
 
     pub fn tick(self: *Bus, tCycles: u32) void {
-        // request timer interupt if timer function returns true meaning overflow
         self.timer.tick(tCycles);
     }
 
     // MMU
 
     pub fn write(self: *Bus, address: u16, value: u8) void {
+        // check if DMA is active and if the adress is not in oam or hram
+        if (self.ppu.dmaActive) {
+            const inOam = (address >= 0xFE00 and address <= 0xFE9F);
+            const inHram = (address >= 0xFF80 and address <= 0xFFFE);
+            if (!(inOam or inHram)) {
+                return;
+            }
+        }
+
         switch (address) {
             0x0000...0x7FFF => {
                 // memory bank switching TODO - make this work completely and make it into helper functions
@@ -112,7 +120,11 @@ pub const Bus = struct {
                 self.ppu.lyc = value;
             },
             0xFF46 => {
+                // handle dma transfer
                 self.ppu.dma = value;
+                self.ppu.dmaSource = @as(u16, value) << 8;
+                self.ppu.dmaActive = true;
+                self.ppu.dmaCycles = 160;
             },
             0xFF47 => {
                 self.ppu.bgp = value;
@@ -136,6 +148,15 @@ pub const Bus = struct {
     }
 
     pub fn read(self: *Bus, address: u16) u8 {
+        // check if DMA is active and if the adress is not in oam or hram
+        if (self.ppu.dmaActive) {
+            const inOam = (address >= 0xFE00 and address <= 0xFE9F);
+            const inHram = (address >= 0xFF80 and address <= 0xFFFE);
+            if (!(inOam or inHram)) {
+                return 0xFF;
+            }
+        }
+
         switch (address) {
             0x0000...0x3FFF => {
                 return self.cartridge.rom[address];

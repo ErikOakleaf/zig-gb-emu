@@ -164,6 +164,19 @@ pub const Cpu = struct {
         const instructionCycles = self.executeOpcode(opcode);
         self.bus.tick(instructionCycles * 4);
 
+        // handle DMA
+        if (self.bus.ppu.dmaActive) {
+            self.bus.ppu.dmaCycles -|= instructionCycles;
+            if (self.bus.ppu.dmaCycles == 0) {
+                // copy over source to oam when 160 cycles is done and finish DMA
+                self.bus.ppu.dmaActive = false;
+                var i: u16 = 0;
+                while (i < 160) : (i += 1) {
+                    self.bus.write(0xFE00 + i, self.bus.read(self.bus.ppu.dmaSource + i));
+                }
+            }
+        }
+
         // check for interupts
         const interruptCycles = self.checkInterrputs();
         if (interruptCycles > 0) {
