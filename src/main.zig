@@ -31,18 +31,18 @@ pub fn main() !void {
     // setup ppu
     var ppu: PPU = undefined;
 
-    // setup bus
-    var bus: Bus = undefined;
-    bus.init(&memory, &timer, &cartridge, &ppu);
-
-    // setup cpu
-    var cpu: Cpu = undefined;
-    try cpu.init(&bus);
-
     // setup sdl and renderer
     var renderer: Renderer = undefined;
     try renderer.init(5);
     defer renderer.deinit();
+
+    // setup bus
+    var bus: Bus = undefined;
+    bus.init(&memory, &timer, &cartridge, &ppu, &renderer);
+
+    // setup cpu
+    var cpu: Cpu = undefined;
+    try cpu.init(&bus);
 
     mainloop: while (true) {
         _ = cpu.tick();

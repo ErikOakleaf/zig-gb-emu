@@ -41,6 +41,36 @@ pub const Renderer = struct {
         self.scale = scale;
     }
 
+    pub fn renderPixelBuffer(self: *Renderer, pixelBuffer: [144][160]u2) void {
+        const palette = [4][3]u8{
+            [3]u8{ 15, 56, 15 },
+            [3]u8{ 48, 98, 48 },
+            [3]u8{ 139, 172, 15 },
+            [3]u8{ 155, 188, 15 },
+        };
+
+        // buffer to store the new rgb values in width * height * 3 (for rgb)
+        var rgbBuffer: [160 * 144 * 3]u8 = undefined;
+
+        var i: usize = 0;
+        for (pixelBuffer) |row| {
+            for (row) |pixel| {
+                const color = palette[pixel];
+                rgbBuffer[i + 0] = color[0];
+                rgbBuffer[i + 1] = color[1];
+                rgbBuffer[i + 2] = color[2];
+                i += 3;
+            }
+        }
+
+        // bytes per scanline
+        const pitch: c_int = 160 * 3;
+        _ = c.SDL_UpdateTexture(self.texture, null, &rgbBuffer[0], pitch);
+
+        _ = c.SDL_RenderTexture(self.renderer, self.texture, null, null);
+        _ = c.SDL_RenderPresent(self.renderer);
+    }
+
     pub fn deinit(self: *Renderer) void {
         c.SDL_Quit();
         c.SDL_DestroyWindow(self.window);

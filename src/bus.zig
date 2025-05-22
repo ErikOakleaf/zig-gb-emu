@@ -7,6 +7,7 @@ const CartridgeType = @import("cartridge.zig").CartridgeType;
 const RomSize = @import("cartridge.zig").RomSize;
 const RamSize = @import("cartridge.zig").RamSize;
 const PPU = @import("ppu.zig").PPU;
+const Renderer = @import("renderer.zig").Renderer;
 
 pub const Bus = struct {
     memory: *Memory,
@@ -14,9 +15,7 @@ pub const Bus = struct {
     cartridge: *Cartridge,
     ppu: *PPU,
 
-    // Init functions
-
-    pub fn init(self: *Bus, memory: *Memory, timer: *Timer, cartridge: *Cartridge, ppu: *PPU) void {
+    pub fn init(self: *Bus, memory: *Memory, timer: *Timer, cartridge: *Cartridge, ppu: *PPU, renderer: *Renderer) void {
         self.memory = memory;
         self.memory.init();
 
@@ -26,14 +25,15 @@ pub const Bus = struct {
 
         self.ppu = ppu;
         self.ppu.flagRegister = &self.memory.io[0x0F];
+        self.ppu.init(renderer);
 
         self.cartridge = cartridge;
-        self.ppu.init();
     }
     // tick subsystems
 
     pub fn tick(self: *Bus, tCycles: u32) void {
         self.timer.tick(tCycles);
+        self.ppu.tick(tCycles);
     }
 
     // MMU
