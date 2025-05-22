@@ -1,3 +1,4 @@
+const std = @import("std");
 const Renderer = @import("renderer.zig").Renderer;
 
 pub const PPU = struct {
@@ -20,7 +21,6 @@ pub const PPU = struct {
 
     // ppu fields
     cyclesAccumilator: u32,
-    currentLine: u8,
     pixelBuffer: [144][160]u2,
 
     // dma fields
@@ -46,6 +46,9 @@ pub const PPU = struct {
         self.obp1 = 0;
         self.wy = 0;
         self.wx = 0;
+
+        self.cyclesAccumilator = 0;
+        self.pixelBuffer = undefined;
 
         self.dmaActive = false;
         self.dmaCycles = 0;

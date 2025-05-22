@@ -161,7 +161,10 @@ pub const Cpu = struct {
         self.pc +%= 1;
 
         // execute opcode
+        // std.debug.print("Executing opcode {x:0>2} at PC {x:0>4}\n", .{ opcode, self.pc });
+
         const instructionCycles = self.executeOpcode(opcode);
+
         self.bus.tick(instructionCycles * 4);
 
         // check for interupts

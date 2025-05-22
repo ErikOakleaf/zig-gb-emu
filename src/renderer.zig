@@ -65,8 +65,10 @@ pub const Renderer = struct {
 
         // bytes per scanline
         const pitch: c_int = 160 * 3;
-        _ = c.SDL_UpdateTexture(self.texture, null, &rgbBuffer[0], pitch);
 
+        // update texture and render it
+        _ = c.SDL_UpdateTexture(self.texture, null, &rgbBuffer[0], pitch);
+        _ = c.SDL_RenderClear(self.renderer);
         _ = c.SDL_RenderTexture(self.renderer, self.texture, null, null);
         _ = c.SDL_RenderPresent(self.renderer);
     }
@@ -75,5 +77,6 @@ pub const Renderer = struct {
         c.SDL_Quit();
         c.SDL_DestroyWindow(self.window);
         c.SDL_DestroyRenderer(self.renderer);
+        c.SDL_DestroyTexture(self.texture);
     }
 };

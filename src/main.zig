@@ -26,6 +26,7 @@ pub fn main() !void {
     var cartridge: Cartridge = undefined;
 
     try cartridge.load("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
+    // try cartridge.load("tests/test_roms/tetris.gb", allocator);
     defer cartridge.deinit(allocator);
 
     // setup ppu
