@@ -34,7 +34,7 @@ pub fn main() !void {
 
     // setup sdl and renderer
     var renderer: Renderer = undefined;
-    try renderer.init(5);
+    try renderer.init(6);
     defer renderer.deinit();
 
     // setup bus

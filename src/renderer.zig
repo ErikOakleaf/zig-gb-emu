@@ -19,7 +19,7 @@ pub const Renderer = struct {
         }
 
         // init window
-        self.window = c.SDL_CreateWindow("Gameboy Emulator", 166 * scale, 144 * scale, 0) orelse return SdlError.SdlInitFailed;
+        self.window = c.SDL_CreateWindow("Gameboy Emulator", 160 * scale, 144 * scale, 0) orelse return SdlError.SdlInitFailed;
 
         // init renderer
         self.renderer = c.SDL_CreateRenderer(self.window, null) orelse return SdlError.SdlInitFailed;
@@ -29,7 +29,7 @@ pub const Renderer = struct {
             self.renderer,
             c.SDL_PIXELFORMAT_RGB24,
             c.SDL_TEXTUREACCESS_STREAMING,
-            166,
+            160,
             144,
         ) orelse return SdlError.SdlInitFailed;
 
