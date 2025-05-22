@@ -38,15 +38,19 @@ pub const Renderer = struct {
             return SdlError.SdlInitFailed;
         }
 
+        if (!c.SDL_SetTextureScaleMode(self.texture, c.SDL_SCALEMODE_NEAREST)) {
+            return SdlError.SdlInitFailed;
+        }
+
         self.scale = scale;
     }
 
     pub fn renderPixelBuffer(self: *Renderer, pixelBuffer: [144][160]u2) void {
         const palette = [4][3]u8{
-            [3]u8{ 15, 56, 15 },
-            [3]u8{ 48, 98, 48 },
-            [3]u8{ 139, 172, 15 },
-            [3]u8{ 155, 188, 15 },
+            [3]u8{ 255, 255, 255 },
+            [3]u8{ 191, 191, 191 },
+            [3]u8{ 64, 64, 64 },
+            [3]u8{ 0, 0, 0 },
         };
 
         // buffer to store the new rgb values in width * height * 3 (for rgb)
