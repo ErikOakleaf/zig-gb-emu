@@ -70,6 +70,7 @@ pub const PPU = struct {
 
             if (self.ly < 144) {
                 self.renderBackgroundLine();
+                self.renderWindowLine();
             }
 
             if (self.ly == 154) {
@@ -93,7 +94,7 @@ pub const PPU = struct {
         // check lcd bit 3 to see where the bg tile map is in memory
         const tileMapBase: u16 = if (self.lcdc & 0b1000 == 0) 0x1800 else 0x1C00;
         // check ldc bit 4 to see what adressing mode should be used for tiles
-        const adressingModeSigned = (self.lcdc & 0b10000 == 0);
+        const addressingModeSigned = (self.lcdc & 0b10000 == 0);
 
         for (0..160) |screenX| {
             tempSum = @intCast(screenX + @as(usize, self.scx));
@@ -107,30 +108,99 @@ pub const PPU = struct {
             const tileId = self.vram[tileMapBase + tileMapIndex];
 
             // get the memory adress of the tile we want to render
-            var tileDataAddress: u16 = undefined;
-            if (adressingModeSigned) {
-                const signed8: i8 = @bitCast(tileId);
-                const signedOffset: i16 = @intCast(signed8);
-                tileDataAddress = @intCast(0x1000 + signedOffset * 16);
-            } else {
-                tileDataAddress = @as(u16, tileId) * 16;
-            }
+            const tileDataAddress: u16 = getTileDataAdress(tileId, addressingModeSigned);
 
             // add the offset of what row in the tile we are in to the address
-            const tileRowAdress = tileDataAddress + (pixelRowInTile * 2);
-            const lowByte = self.vram[tileRowAdress];
-            const highByte = self.vram[tileRowAdress + 1];
-
-            // get the position of the pixel we are going to render
-            const bitPosition = 7 - pixelColumnInTile;
-            const bitPositionU3: u3 = @intCast(bitPosition);
-            const lowBit: u1 = @truncate(lowByte >> bitPositionU3);
-            const highBit: u1 = @truncate(highByte >> bitPositionU3);
-            const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
-
-            // add palette stuff here later
+            const tileRowAddress: u16 = tileDataAddress + (pixelRowInTile * 2);
+            const pixel = self.getPixel(tileRowAddress, pixelColumnInTile);
 
             self.pixelBuffer[self.ly][screenX] = pixel;
         }
+    }
+
+    pub fn renderWindowLine(self: *PPU) void {
+        // return if bit 5 is not set in lcdc
+        if (self.lcdc & 0b100000 == 0) {
+            return;
+        }
+
+        // if the current scanline is not at the window position return
+        if (self.ly < self.wy) {
+            return;
+        }
+
+        std.debug.print("rendering window line\n", .{});
+
+        // current window line we are rendering
+        const windowLine = self.ly - self.wy;
+
+        const tileRow = windowLine / 8;
+        const pixelRowInTile = windowLine % 8;
+
+        // check lcdc bit 6 to see where window tile maps start
+        var tileMapBase: u16 = undefined;
+        if (self.lcdc & 0b1000000 == 0) {
+            tileMapBase = 0x1800;
+        } else {
+            tileMapBase = 0x1C00;
+        }
+
+        // check ldc bit 4 to see what adressing mode should be used for tiles
+        const addressingModeSigned = (self.lcdc & 0b10000 == 0);
+
+        // Window X coordinate is WX - 7 (hardware quirk)
+        const startX: u16 = @as(u16, self.wx) -| 7;
+
+        for (startX..160) |screenX| {
+            const windowX = screenX - startX;
+
+            const tileColumn = windowX / 8;
+            const pixelColumnInTile = windowX % 8;
+
+            const tileMapIndex: usize = tileRow * 32 + tileColumn;
+            const tileId = self.vram[tileMapBase + tileMapIndex];
+
+            // get the memory adress of the tile we want to render
+            const tileDataAddress: u16 = getTileDataAdress(tileId, addressingModeSigned);
+
+            // add the offset of what row in the tile we are in to the address
+            const tileRowAddress: u16 = tileDataAddress + (pixelRowInTile * 2);
+            const pixel = self.getPixel(tileRowAddress, pixelColumnInTile);
+
+            self.pixelBuffer[self.ly][screenX] = pixel;
+        }
+    }
+
+    fn getTileDataAdress(tileId: u8, addressingModeSigned: bool) u16 {
+        // get the memory adress of the tile we want to render
+        var tileDataAddress: u16 = undefined;
+        if (addressingModeSigned) {
+            const signed8: i8 = @bitCast(tileId);
+            const signedOffset: i16 = @intCast(signed8);
+            tileDataAddress = @intCast(0x1000 + signedOffset * 16);
+        } else {
+            tileDataAddress = @as(u16, tileId) * 16;
+        }
+
+        return tileDataAddress;
+    }
+
+    fn getPixel(self: *PPU, tileRowAddress: u16, pixelColumnInTile: usize) u2 {
+        const lowByte = self.vram[tileRowAddress];
+        const highByte = self.vram[tileRowAddress + 1];
+
+        // get the position of the pixel we are going to render
+        const bitPosition = 7 - pixelColumnInTile;
+        const bitPositionU3: u3 = @intCast(bitPosition);
+        const lowBit: u1 = @truncate(lowByte >> bitPositionU3);
+        const highBit: u1 = @truncate(highByte >> bitPositionU3);
+        const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
+
+        // palette shift pixel
+        const paletteShift = @as(u8, pixel) * 2;
+        const paletteShiftU3: u3 = @intCast(paletteShift);
+        const mappedPixel: u2 = @truncate(self.bgp >> paletteShiftU3);
+
+        return mappedPixel;
     }
 };

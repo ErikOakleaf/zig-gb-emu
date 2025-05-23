@@ -97,7 +97,7 @@ pub const Cpu = struct {
 
         // initialize memory registers
 
-        self.bus.write(0xFF00, 0xCF); // P1
+        self.bus.write(0xFF00, 0xF); // P1
         self.bus.write(0xFF01, 0x00); // SB
         self.bus.write(0xFF02, 0x7E); // SC
         self.bus.write(0xFF04, 0xAB); // DIV
