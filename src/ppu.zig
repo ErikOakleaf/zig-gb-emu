@@ -58,6 +58,11 @@ pub const PPU = struct {
     }
 
     pub fn tick(self: *PPU, tCycles: u32) void {
+        // check if LCD is enabled
+        if (self.lcdc & 1 << 7 == 0) {
+            return;
+        }
+
         self.cyclesAccumilator += tCycles;
 
         while (self.cyclesAccumilator > 456) {
@@ -71,6 +76,7 @@ pub const PPU = struct {
             if (self.ly < 144) {
                 self.renderBackgroundLine();
                 self.renderWindowLine();
+                self.renderSpritesLine();
             }
 
             if (self.ly == 154) {
@@ -82,7 +88,7 @@ pub const PPU = struct {
         }
     }
 
-    pub fn renderBackgroundLine(self: *PPU) void {
+    fn renderBackgroundLine(self: *PPU) void {
         // current position in the tile map pixel cordinate
         var tempSum: u16 = @as(u16, self.ly) + @as(u16, self.scy);
         const tileMapY: u8 = @intCast(tempSum % 256);
@@ -118,7 +124,7 @@ pub const PPU = struct {
         }
     }
 
-    pub fn renderWindowLine(self: *PPU) void {
+    fn renderWindowLine(self: *PPU) void {
         // return if bit 5 is not set in lcdc
         if (self.lcdc & 0b100000 == 0) {
             return;
@@ -138,12 +144,7 @@ pub const PPU = struct {
         const pixelRowInTile = windowLine % 8;
 
         // check lcdc bit 6 to see where window tile maps start
-        var tileMapBase: u16 = undefined;
-        if (self.lcdc & 0b1000000 == 0) {
-            tileMapBase = 0x1800;
-        } else {
-            tileMapBase = 0x1C00;
-        }
+        const tileMapBase: u16 = if (self.lcdc & 0b1000000 == 0) 0x1800 else 0x1C00;
 
         // check ldc bit 4 to see what adressing mode should be used for tiles
         const addressingModeSigned = (self.lcdc & 0b10000 == 0);
@@ -168,6 +169,61 @@ pub const PPU = struct {
             const pixel = self.getPixel(tileRowAddress, pixelColumnInTile);
 
             self.pixelBuffer[self.ly][screenX] = pixel;
+        }
+    }
+
+    fn renderSpritesLine(self: *PPU) void {
+        if (self.lcdc & 0b10 == 0) {
+            return;
+        }
+
+        const spriteHeight: u8 = if ((self.lcdc & 0b100) != 0) 16 else 8;
+
+        // loop through all sprites in oam
+        for (0..40) |i| {
+            const spriteIndex = i * 4;
+
+            const spriteY: i16 = @as(i16, @intCast(self.oam[spriteIndex])) - 16; // subtract 16 because y is stored + 16 in memory
+            const spriteX: i16 = @as(i16, @intCast(self.oam[spriteIndex + 1])) - 8; // subtract 8 because x is stored + 8 in memory
+            const tileIndex: u8 = self.oam[spriteIndex + 2];
+            const attributes: u8 = self.oam[spriteIndex + 3];
+
+            // Skip sprite if current scanline is not within vertical bounds
+            if (self.ly < spriteY or self.ly >= spriteY + spriteHeight) {
+                continue;
+            }
+
+            const yFlip = (attributes & 1 << 6) != 0;
+            const xFlip = (attributes & 1 << 5) != 0;
+            const palette = if ((attributes & 1 << 4) != 0) self.obp1 else self.obp0;
+
+            const pixelRowInTile = if (yFlip) spriteHeight - 1 - (self.ly - spriteY) else (self.ly - spriteY);
+            const tileRowAddress = @as(u16, tileIndex) * 16 + @as(u16, @intCast(pixelRowInTile)) * 2;
+            const lowByte = self.vram[tileRowAddress];
+            const highByte = self.vram[tileRowAddress + 1];
+
+            for (0..8) |pixelX| {
+                const screenX = spriteX + @as(i8, @intCast(pixelX));
+                if (screenX >= 160 or screenX < 0) {
+                    continue;
+                }
+
+                const bitIndex = if (xFlip) pixelX else 7 - pixelX;
+                const bitIndexU3: u3 = @intCast(bitIndex);
+
+                const lowBit: u1 = @truncate(lowByte >> bitIndexU3);
+                const highBit: u1 = @truncate(highByte >> bitIndexU3);
+                const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
+
+                if (pixel == 0) continue; // transparent pixel
+
+                const paletteShift = @as(u8, pixel) * 2;
+                const paletteShiftU3: u3 = @intCast(paletteShift);
+                const mappedPixel: u2 = @truncate(palette >> paletteShiftU3);
+
+                // Priority: always draw over background for now
+                self.pixelBuffer[self.ly][@as(usize, @intCast(screenX))] = mappedPixel;
+            }
         }
     }
 

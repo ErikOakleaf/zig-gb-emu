@@ -49,6 +49,7 @@ pub const Bus = struct {
         }
 
         switch (address) {
+            0xFF00 => {}, // TODO - this is some debug bs right now delete this later
             0x0000...0x7FFF => {
                 // memory bank switching TODO - make this work completely and make it into helper functions
                 switch (self.cartridge.type) {
