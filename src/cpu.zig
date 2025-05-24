@@ -79,11 +79,15 @@ pub const Cpu = struct {
     // Bus
     bus: *Bus,
 
-    pub fn init(self: *Cpu, bus: *Bus) !void {
+    // for debugging
+    debug: bool,
+    debugFile: std.fs.File,
+
+    pub fn init(self: *Cpu, bus: *Bus, debug: bool) !void {
         self.bus = bus;
 
         self.a = 0x01;
-        self.f = 0x90;
+        self.f = 0xFC;
         self.b = 0x00;
         self.c = 0x13;
         self.d = 0x00;
@@ -95,9 +99,18 @@ pub const Cpu = struct {
         self.ime = false;
         self.halted = false;
 
+        // debug off by default
+        self.debug = debug;
+
+        if (debug) {
+            self.debugFile = try std.fs.cwd().createFile("Execute-Trace.txt", .{ .truncate = true });
+        } else {
+            self.debugFile = undefined;
+        }
+
         // initialize memory registers
 
-        self.bus.write(0xFF00, 0xF); // P1
+        self.bus.write(0xFF00, 0xCF); // P1
         self.bus.write(0xFF01, 0x00); // SB
         self.bus.write(0xFF02, 0x7E); // SC
         self.bus.write(0xFF04, 0xAB); // DIV
@@ -141,7 +154,7 @@ pub const Cpu = struct {
         self.bus.write(0xFFFF, 0x00); // IE
     }
 
-    pub fn tick(self: *Cpu) u8 {
+    pub fn tick(self: *Cpu) !u8 {
         // handle halting
         if (self.halted) {
             const haltCycles = 1;
@@ -158,10 +171,14 @@ pub const Cpu = struct {
 
         // read opcode
         const opcode: u8 = self.bus.read(self.pc);
+
+        if (self.debug) {
+            try self.createStackTraceLine(opcode);
+        }
+
         self.pc +%= 1;
 
         // execute opcode
-        // std.debug.print("Executing opcode {x:0>2} at PC {x:0>4}\n", .{ opcode, self.pc });
 
         const instructionCycles = self.executeOpcode(opcode);
 
@@ -2250,7 +2267,7 @@ pub const Cpu = struct {
                     self.handleInterrupt(InterruptType.Joypad);
                 }
 
-                return 20;
+                return 5;
             }
         }
         return 0;
@@ -3102,5 +3119,41 @@ pub const Cpu = struct {
 
     fn SET(value: u8, bit: u3) u8 {
         return value | math.shl(u8, 1, bit);
+    }
+
+    fn createStackTraceLine(self: *Cpu, opcode: u8) !void {
+        const AF = combine8BitValues(self.a, self.b);
+        const DE = combine8BitValues(self.d, self.e);
+        const HL = combine8BitValues(self.h, self.l);
+        const SP = self.sp;
+        const PC = self.pc;
+
+        var flagBuffer: [8]u8 = undefined; // e.g. "Z N H C"
+        flagBuffer[0] = if (self.flagIsSet(Flag.z) != 0) 'Z' else '-';
+        flagBuffer[1] = ' ';
+        flagBuffer[2] = if (self.flagIsSet(Flag.n) != 0) 'N' else '-';
+        flagBuffer[3] = ' ';
+        flagBuffer[4] = if (self.flagIsSet(Flag.h) != 0) 'H' else '-';
+        flagBuffer[5] = ' ';
+        flagBuffer[6] = if (self.flagIsSet(Flag.c) != 0) 'C' else '-';
+        flagBuffer[7] = ' ';
+
+        var stackBuffer: [32]u8 = undefined; // Enough for "FF FF FF FF FF FF FF FF"
+        const stackString = try std.fmt.bufPrint(stackBuffer[0..], "{X:02} {X:02} {X:02} {X:02} {X:02} {X:02} {X:02} {X:02}", .{
+            self.bus.read(self.sp +| 0),
+            self.bus.read(self.sp +| 1),
+            self.bus.read(self.sp +| 2),
+            self.bus.read(self.sp +| 3),
+            self.bus.read(self.sp +| 4),
+            self.bus.read(self.sp +| 5),
+            self.bus.read(self.sp +| 6),
+            self.bus.read(self.sp +| 7),
+        });
+
+        var buffer: [128]u8 = undefined;
+
+        const line = try std.fmt.bufPrint(buffer[0..], "{s}, AF:{X:04} DE:{X:04} HL:{X:04} SP:{X:04}, STACK:[ {s}], PC:{X:04}, opcode:{X:02}\n", .{ flagBuffer, AF, DE, HL, SP, stackString, PC, opcode });
+
+        try self.debugFile.writeAll(line);
     }
 };

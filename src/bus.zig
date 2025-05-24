@@ -178,6 +178,9 @@ pub const Bus = struct {
             0xFE00...0xFE9F => {
                 return self.ppu.oam[address - 0xFE00];
             },
+            0xFF00 => {
+                return 0xFF; // TODO - joypad is stubbed for now since not implemented
+            },
             0xFF04 => {
                 return self.timer.div;
             },

@@ -65,7 +65,7 @@ pub const PPU = struct {
 
         self.cyclesAccumilator += tCycles;
 
-        while (self.cyclesAccumilator > 456) {
+        while (self.cyclesAccumilator >= 456) {
             self.cyclesAccumilator -= 456;
 
             if (self.ly == 143) {
@@ -85,6 +85,20 @@ pub const PPU = struct {
             } else {
                 self.ly += 1;
             }
+        }
+
+        const coincidence = (self.ly == self.lyc);
+        if (coincidence) {
+            // set STAT bit 2
+            self.stat |= (1 << 2);
+            // 2) If STAT bit 6 is enabled, request a STAT interrupt
+            if ((self.stat & (1 << 6)) != 0) {
+                self.flagRegister.* |= (1 << 1); // IF bit 1 = STAT
+                // std.debug.print("stat interrupt fired", .{});
+            }
+        } else {
+            // clear STAT bit 2
+            self.stat &= ~@as(u8, (1 << 2));
         }
 
         // self.ppuDebug();

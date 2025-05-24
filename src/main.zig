@@ -10,6 +10,8 @@ const c = @cImport({
     @cInclude("SDL3/SDL.h");
 });
 
+const debug = true;
+
 pub fn main() !void {
     // setup memory
     var memory: Memory = undefined;
@@ -27,7 +29,8 @@ pub fn main() !void {
 
     // try cartridge.load("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
     // try cartridge.load("tests/test_roms/cpu_instrs/individual/01-special.gb", allocator);
-    try cartridge.load("tests/test_roms/tetris.gb", allocator);
+    // try cartridge.load("tests/test_roms/tetris.gb", allocator);
+    try cartridge.load("tests/test_roms/Dr. Mario.gb", allocator);
     // try cartridge.load("tests/test_roms/Super Mario Land.gb", allocator);
     defer cartridge.deinit(allocator);
 
@@ -45,10 +48,12 @@ pub fn main() !void {
 
     // setup cpu
     var cpu: Cpu = undefined;
-    try cpu.init(&bus);
+    try cpu.init(&bus, debug);
+
+    var totalCycles: usize = 0;
 
     mainloop: while (true) {
-        _ = cpu.tick();
+        totalCycles += try cpu.tick();
         var sdl_event: c.SDL_Event = undefined;
 
         while (c.SDL_PollEvent(&sdl_event)) {
@@ -57,5 +62,9 @@ pub fn main() !void {
                 else => {},
             }
         }
+    }
+
+    if (debug) {
+        cpu.debugFile.close();
     }
 }

@@ -3,3 +3,4 @@ zig-out/
 tests/test_roms
 deps/SDL3-3.2.14
 SDL3.dll
+Execute-Trace.txt
