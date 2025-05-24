@@ -34,7 +34,7 @@ pub const PPU = struct {
     pub fn init(self: *PPU, renderer: *Renderer) void {
         @memset(self.vram[0..], 0);
         @memset(self.oam[0..], 0);
-        self.lcdc = 0;
+        self.lcdc = 0x91;
         self.stat = 0;
         self.scy = 0;
         self.scx = 0;
@@ -42,16 +42,16 @@ pub const PPU = struct {
         self.lyc = 0;
         self.dma = 0;
         self.bgp = 0;
-        self.obp0 = 0;
-        self.obp1 = 0;
+        self.obp0 = 0xFF;
+        self.obp1 = 0xFF;
         self.wy = 0;
-        self.wx = 0;
+        self.wx = 14;
 
         self.cyclesAccumilator = 0;
         self.pixelBuffer = undefined;
 
         self.dmaActive = false;
-        self.dmaCycles = 0;
+        self.dmaCycles = 160;
         self.dmaSource = 0;
 
         self.renderer = renderer;
@@ -86,6 +86,8 @@ pub const PPU = struct {
                 self.ly += 1;
             }
         }
+
+        // self.ppuDebug();
     }
 
     fn renderBackgroundLine(self: *PPU) void {
@@ -258,5 +260,28 @@ pub const PPU = struct {
         const mappedPixel: u2 = @truncate(self.bgp >> paletteShiftU3);
 
         return mappedPixel;
+    }
+
+    // TODO - remove this later when not needed
+    fn ppuDebug(self: *PPU) void {
+        for (self.vram) |element| {
+            if (element != 0) {
+                std.debug.print("vram has loaded bit\n", .{});
+                return;
+            }
+        }
+        std.debug.print("vram has not loaded any bits\n", .{});
+
+        if (self.bgp == 0) {
+            std.debug.print("bgp is blank\n", .{});
+        }
+
+        if (self.obp0 == 0) {
+            std.debug.print("obp0 is blank\n", .{});
+        }
+
+        if (self.obp0 == 1) {
+            std.debug.print("obp1 is blank\n", .{});
+        }
     }
 };

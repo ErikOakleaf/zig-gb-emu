@@ -49,7 +49,7 @@ pub const Bus = struct {
         }
 
         switch (address) {
-            0xFF00 => {}, // TODO - this is some debug bs right now delete this later
+            0xFF00 => {}, // TODO - remove this
             0x0000...0x7FFF => {
                 // memory bank switching TODO - make this work completely and make it into helper functions
                 switch (self.cartridge.type) {
@@ -204,8 +204,7 @@ pub const Bus = struct {
                 return self.ppu.scx;
             },
             0xFF44 => {
-                // TODO - for debbuging right now remove this later when the PPU is finished
-                return 0x90;
+                return self.ppu.ly;
             },
             0xFF45 => {
                 return self.ppu.lyc;

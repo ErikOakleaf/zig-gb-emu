@@ -132,10 +132,10 @@ pub const Cpu = struct {
         self.bus.write(0xFF43, 0x00); // SCX
         self.bus.write(0xFF44, 0x00); // LY
         self.bus.write(0xFF45, 0x00); // LYC
-        self.bus.write(0xFF46, 0xFF); // DMA
+        self.bus.ppu.dma = 0xFF; // DMA don't do bus write here since that will start dma oam transfer
         self.bus.write(0xFF47, 0xFC); // BGP
-        self.bus.write(0xFF48, 0x07); // OBP0
-        self.bus.write(0xFF49, 0x07); // OBP1
+        self.bus.write(0xFF48, 0xFF); // OBP0
+        self.bus.write(0xFF49, 0xFF); // OBP1
         self.bus.write(0xFF4A, 0x00); // WY
         self.bus.write(0xFF4B, 0x00); // WX
         self.bus.write(0xFFFF, 0x00); // IE
