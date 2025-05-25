@@ -151,8 +151,6 @@ pub const PPU = struct {
             return;
         }
 
-        std.debug.print("rendering window line\n", .{});
-
         // current window line we are rendering
         const windowLine = self.ly - self.wy;
 

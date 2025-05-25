@@ -187,14 +187,16 @@ pub const Cpu = struct {
         // read opcode
         const opcode: u8 = self.bus.read(self.pc);
 
+        // for debugging
         if (self.debug) {
             try self.createStackTraceLine(opcode);
         }
 
         self.pc +%= 1;
 
+        // update joypad register
+        self.bus.joypad.updateJoypadRegister();
         // execute opcode
-
         const instructionCycles = self.executeOpcode(opcode);
 
         self.bus.tick(instructionCycles * 4);

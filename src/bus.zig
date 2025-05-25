@@ -8,14 +8,16 @@ const RomSize = @import("cartridge.zig").RomSize;
 const RamSize = @import("cartridge.zig").RamSize;
 const PPU = @import("ppu.zig").PPU;
 const Renderer = @import("renderer.zig").Renderer;
+const Joypad = @import("joypad.zig").Joypad;
 
 pub const Bus = struct {
     memory: *Memory,
     timer: *Timer,
     cartridge: *Cartridge,
     ppu: *PPU,
+    joypad: *Joypad,
 
-    pub fn init(self: *Bus, memory: *Memory, timer: *Timer, cartridge: *Cartridge, ppu: *PPU, renderer: *Renderer) void {
+    pub fn init(self: *Bus, memory: *Memory, timer: *Timer, cartridge: *Cartridge, ppu: *PPU, joypad: *Joypad, renderer: *Renderer) void {
         self.memory = memory;
         self.memory.init();
 
@@ -28,6 +30,10 @@ pub const Bus = struct {
         self.ppu.init(renderer);
 
         self.cartridge = cartridge;
+
+        self.joypad = joypad;
+        self.joypad.init();
+        self.joypad.flagRegister = &self.memory.io[0x0F];
     }
     // tick subsystems
 
@@ -40,7 +46,6 @@ pub const Bus = struct {
 
     pub fn write(self: *Bus, address: u16, value: u8) void {
         switch (address) {
-            0xFF00 => {}, // TODO - remove this
             0x0000...0x7FFF => {
                 // memory bank switching TODO - make this work completely and make it into helper functions
                 switch (self.cartridge.type) {
@@ -69,11 +74,20 @@ pub const Bus = struct {
             0xFE00...0xFE9F => {
                 self.ppu.oam[address - 0xFE00] = value;
             },
+            0xFF00 => {
+                // write to p1 lower nibble is read only
+                const maskedValue = value & 0xF0;
+                self.joypad.p1 = (self.joypad.p1 & 0x0F) | maskedValue;
+            },
             0xFF02 => {
+                self.memory.write(address, value);
+
                 // TODO - check this implementation more thourgouhly later now for debugging serial transfer
                 if ((value & 0x80) != 0) {
-                    const serialBuffer = self.memory.read(0xFF01);
-                    std.debug.print("{c}", .{serialBuffer});
+                    // enable these two lines under here if you want to see what serial transfer is printing out
+
+                    // const serialBuffer = self.memory.read(0xFF01);
+                    // std.debug.print("{c}", .{serialBuffer});
 
                     self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
                 }
@@ -170,7 +184,7 @@ pub const Bus = struct {
                 return self.ppu.oam[address - 0xFE00];
             },
             0xFF00 => {
-                return 0xFF; // TODO - joypad is stubbed for now since not implemented
+                return self.joypad.p1;
             },
             0xFF04 => {
                 return self.timer.div;
