@@ -39,15 +39,6 @@ pub const Bus = struct {
     // MMU
 
     pub fn write(self: *Bus, address: u16, value: u8) void {
-        // check if DMA is active and if the adress is not in oam or hram
-        if (self.ppu.dmaActive) {
-            const inOam = (address >= 0xFE00 and address <= 0xFE9F);
-            const inHram = (address >= 0xFF80 and address <= 0xFFFE);
-            if (!(inOam or inHram)) {
-                return;
-            }
-        }
-
         switch (address) {
             0xFF00 => {}, // TODO - remove this
             0x0000...0x7FFF => {
@@ -154,7 +145,7 @@ pub const Bus = struct {
             const inOam = (address >= 0xFE00 and address <= 0xFE9F);
             const inHram = (address >= 0xFF80 and address <= 0xFFFE);
             if (!(inOam or inHram)) {
-                return 0xFF;
+                return 0x0;
             }
         }
 
