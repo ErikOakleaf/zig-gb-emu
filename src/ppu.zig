@@ -210,6 +210,7 @@ pub const PPU = struct {
             const yFlip = (attributes & 1 << 6) != 0;
             const xFlip = (attributes & 1 << 5) != 0;
             const palette = if ((attributes & 1 << 4) != 0) self.obp1 else self.obp0;
+            const bgPriority = (attributes & 1 << 7 != 0);
 
             const pixelRowInTile = if (yFlip) spriteHeight - 1 - (self.ly - spriteY) else (self.ly - spriteY);
             const tileRowAddress = @as(u16, tileIndex) * 16 + @as(u16, @intCast(pixelRowInTile)) * 2;
@@ -230,6 +231,13 @@ pub const PPU = struct {
                 const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
 
                 if (pixel == 0) continue; // transparent pixel
+
+                if (bgPriority) {
+                    const currentBgPixel = self.pixelBuffer[self.ly][@as(usize, @intCast(screenX))];
+                    if (currentBgPixel != 0) {
+                        continue;
+                    }
+                }
 
                 const paletteShift = @as(u8, pixel) * 2;
                 const paletteShiftU3: u3 = @intCast(paletteShift);
