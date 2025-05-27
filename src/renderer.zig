@@ -46,11 +46,18 @@ pub const Renderer = struct {
     }
 
     pub fn renderPixelBuffer(self: *Renderer, pixelBuffer: [144][160]u2) void {
+        // const palette = [4][3]u8{
+        //     [3]u8{ 255, 255, 255 },
+        //     [3]u8{ 191, 191, 191 },
+        //     [3]u8{ 64, 64, 64 },
+        //     [3]u8{ 0, 0, 0 },
+        // };
+
         const palette = [4][3]u8{
-            [3]u8{ 255, 255, 255 },
-            [3]u8{ 191, 191, 191 },
-            [3]u8{ 64, 64, 64 },
-            [3]u8{ 0, 0, 0 },
+            [3]u8{ 224, 248, 208 },
+            [3]u8{ 136, 192, 112 },
+            [3]u8{ 52, 104, 86 },
+            [3]u8{ 8, 24, 32 },
         };
 
         // buffer to store the new rgb values in width * height * 3 (for rgb)

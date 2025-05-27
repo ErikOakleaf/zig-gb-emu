@@ -71,6 +71,7 @@ pub const Cpu = struct {
     l: u8,
     sp: u16,
     pc: u16,
+    cpuCycles: u32,
 
     // CPU Flags
     ime: bool,
@@ -154,7 +155,7 @@ pub const Cpu = struct {
         self.bus.write(0xFFFF, 0x00); // IE
     }
 
-    pub fn tick(self: *Cpu) !u8 {
+    pub fn step(self: *Cpu) !u8 {
         // handle halting
         if (self.halted) {
             const haltCycles = 1;
@@ -208,6 +209,18 @@ pub const Cpu = struct {
         }
 
         return instructionCycles + interruptCycles;
+    }
+
+    fn tick(self: *Cpu) void {
+        self.cycles += 1;
+        self.bus.tick(1); // change the bus tick function later but for now just send it one t cycle
+    }
+
+    fn tick4(self: *Cpu) void {
+        self.tick();
+        self.tick();
+        self.tick();
+        self.tick();
     }
 
     // executes opcode returns the ammount of cycles
@@ -621,148 +634,148 @@ pub const Cpu = struct {
             },
             // LD r8, r8
             0x40 => {
-                LD_r8_r8(&self.b, &self.b);
+                self.LD_r8_r8(&self.b, &self.b);
             },
             0x41 => {
-                LD_r8_r8(&self.b, &self.c);
+                self.LD_r8_r8(&self.b, &self.c);
             },
             0x42 => {
-                LD_r8_r8(&self.b, &self.d);
+                self.LD_r8_r8(&self.b, &self.d);
             },
             0x43 => {
-                LD_r8_r8(&self.b, &self.e);
+                self.LD_r8_r8(&self.b, &self.e);
             },
             0x44 => {
-                LD_r8_r8(&self.b, &self.h);
+                self.LD_r8_r8(&self.b, &self.h);
             },
             0x45 => {
-                LD_r8_r8(&self.b, &self.l);
+                self.LD_r8_r8(&self.b, &self.l);
             },
             0x46 => {
                 self.LD_r8_HL(&self.b);
             },
             0x47 => {
-                LD_r8_r8(&self.b, &self.a);
+                self.LD_r8_r8(&self.b, &self.a);
             },
             0x48 => {
-                LD_r8_r8(&self.c, &self.b);
+                self.LD_r8_r8(&self.c, &self.b);
             },
             0x49 => {
-                LD_r8_r8(&self.c, &self.c);
+                self.LD_r8_r8(&self.c, &self.c);
             },
             0x4A => {
-                LD_r8_r8(&self.c, &self.d);
+                self.LD_r8_r8(&self.c, &self.d);
             },
             0x4B => {
-                LD_r8_r8(&self.c, &self.e);
+                self.LD_r8_r8(&self.c, &self.e);
             },
             0x4C => {
-                LD_r8_r8(&self.c, &self.h);
+                self.LD_r8_r8(&self.c, &self.h);
             },
             0x4D => {
-                LD_r8_r8(&self.c, &self.l);
+                self.LD_r8_r8(&self.c, &self.l);
             },
             0x4E => {
                 self.LD_r8_HL(&self.c);
             },
             0x4F => {
-                LD_r8_r8(&self.c, &self.a);
+                self.LD_r8_r8(&self.c, &self.a);
             },
             0x50 => {
-                LD_r8_r8(&self.d, &self.b);
+                self.LD_r8_r8(&self.d, &self.b);
             },
             0x51 => {
-                LD_r8_r8(&self.d, &self.c);
+                self.LD_r8_r8(&self.d, &self.c);
             },
             0x52 => {
-                LD_r8_r8(&self.d, &self.d);
+                self.LD_r8_r8(&self.d, &self.d);
             },
             0x53 => {
-                LD_r8_r8(&self.d, &self.e);
+                self.LD_r8_r8(&self.d, &self.e);
             },
             0x54 => {
-                LD_r8_r8(&self.d, &self.h);
+                self.LD_r8_r8(&self.d, &self.h);
             },
             0x55 => {
-                LD_r8_r8(&self.d, &self.l);
+                self.LD_r8_r8(&self.d, &self.l);
             },
             0x56 => {
                 self.LD_r8_HL(&self.d);
             },
             0x57 => {
-                LD_r8_r8(&self.d, &self.a);
+                self.LD_r8_r8(&self.d, &self.a);
             },
             0x58 => {
-                LD_r8_r8(&self.e, &self.b);
+                self.LD_r8_r8(&self.e, &self.b);
             },
             0x59 => {
-                LD_r8_r8(&self.e, &self.c);
+                self.LD_r8_r8(&self.e, &self.c);
             },
             0x5A => {
-                LD_r8_r8(&self.e, &self.d);
+                self.LD_r8_r8(&self.e, &self.d);
             },
             0x5B => {
-                LD_r8_r8(&self.e, &self.e);
+                self.LD_r8_r8(&self.e, &self.e);
             },
             0x5C => {
-                LD_r8_r8(&self.e, &self.h);
+                self.LD_r8_r8(&self.e, &self.h);
             },
             0x5D => {
-                LD_r8_r8(&self.e, &self.l);
+                self.LD_r8_r8(&self.e, &self.l);
             },
             0x5E => {
                 self.LD_r8_HL(&self.e);
             },
             0x5F => {
-                LD_r8_r8(&self.e, &self.a);
+                self.LD_r8_r8(&self.e, &self.a);
             },
             0x60 => {
-                LD_r8_r8(&self.h, &self.b);
+                self.LD_r8_r8(&self.h, &self.b);
             },
             0x61 => {
-                LD_r8_r8(&self.h, &self.c);
+                self.LD_r8_r8(&self.h, &self.c);
             },
             0x62 => {
-                LD_r8_r8(&self.h, &self.d);
+                self.LD_r8_r8(&self.h, &self.d);
             },
             0x63 => {
-                LD_r8_r8(&self.h, &self.e);
+                self.LD_r8_r8(&self.h, &self.e);
             },
             0x64 => {
-                LD_r8_r8(&self.h, &self.h);
+                self.LD_r8_r8(&self.h, &self.h);
             },
             0x65 => {
-                LD_r8_r8(&self.h, &self.l);
+                self.LD_r8_r8(&self.h, &self.l);
             },
             0x66 => {
                 self.LD_r8_HL(&self.h);
             },
             0x67 => {
-                LD_r8_r8(&self.h, &self.a);
+                self.LD_r8_r8(&self.h, &self.a);
             },
             0x68 => {
-                LD_r8_r8(&self.l, &self.b);
+                self.LD_r8_r8(&self.l, &self.b);
             },
             0x69 => {
-                LD_r8_r8(&self.l, &self.c);
+                self.LD_r8_r8(&self.l, &self.c);
             },
             0x6a => {
-                LD_r8_r8(&self.l, &self.d);
+                self.LD_r8_r8(&self.l, &self.d);
             },
             0x6b => {
-                LD_r8_r8(&self.l, &self.e);
+                self.LD_r8_r8(&self.l, &self.e);
             },
             0x6c => {
-                LD_r8_r8(&self.l, &self.h);
+                self.LD_r8_r8(&self.l, &self.h);
             },
             0x6d => {
-                LD_r8_r8(&self.l, &self.l);
+                self.LD_r8_r8(&self.l, &self.l);
             },
             0x6e => {
                 self.LD_r8_HL(&self.l);
             },
             0x6f => {
-                LD_r8_r8(&self.l, &self.a);
+                self.LD_r8_r8(&self.l, &self.a);
             },
             // LD HL r8
             0x70 => {
@@ -790,28 +803,28 @@ pub const Cpu = struct {
                 self.LD_HL_r8(&self.a);
             },
             0x78 => {
-                LD_r8_r8(&self.a, &self.b);
+                self.LD_r8_r8(&self.a, &self.b);
             },
             0x79 => {
-                LD_r8_r8(&self.a, &self.c);
+                self.LD_r8_r8(&self.a, &self.c);
             },
             0x7a => {
-                LD_r8_r8(&self.a, &self.d);
+                self.LD_r8_r8(&self.a, &self.d);
             },
             0x7b => {
-                LD_r8_r8(&self.a, &self.e);
+                self.LD_r8_r8(&self.a, &self.e);
             },
             0x7c => {
-                LD_r8_r8(&self.a, &self.h);
+                self.LD_r8_r8(&self.a, &self.h);
             },
             0x7d => {
-                LD_r8_r8(&self.a, &self.l);
+                self.LD_r8_r8(&self.a, &self.l);
             },
             0x7e => {
                 self.LD_r8_HL(&self.a);
             },
             0x7f => {
-                LD_r8_r8(&self.a, &self.a);
+                self.LD_r8_r8(&self.a, &self.a);
             },
             // ADD A, r8
             0x80 => {
@@ -2356,14 +2369,33 @@ pub const Cpu = struct {
         }
     }
 
+    // micro operations
+
+    fn fetchU8(self: *Cpu) u8 {
+        self.tick4();
+        const value: u8 = self.bus.read(self.pc);
+        self.pc +%= 1;
+        return value;
+    }
+
+    fn writeU8(self: *Cpu, address: u16, value: u8) void {
+        self.tick4();
+        self.bus.write(address, value);
+    }
+
+    fn writeU8ToRegister(self: *Cpu, register: *u8, value: u8) void {
+        self.tick4();
+        register.* = value;
+    }
+
     // helper functions
 
-    fn combine8BitValues(hiValue: u8, loValue: u8) u16 {
+    inline fn combine8BitValues(hiValue: u8, loValue: u8) u16 {
         const newValue: u16 = @as(u16, hiValue) << 8 | loValue;
         return newValue;
     }
 
-    fn decompose16BitValue(value: u16) [2]u8 {
+    inline fn decompose16BitValue(value: u16) [2]u8 {
         // store as two 8 bit ints in registers
         const hiValue: u8 = @truncate(value >> 8);
         const loValue: u8 = @truncate(value);
@@ -2371,47 +2403,47 @@ pub const Cpu = struct {
         return .{ hiValue, loValue };
     }
 
-    fn checkHalfCarry16(a: u16, b: u16) bool {
+    inline fn checkHalfCarry16(a: u16, b: u16) bool {
         return ((a & 0x0FFF) + (b & 0x0FFF)) > 0x0FFF;
     }
 
-    fn checkCarry16(a: u16, b: u16) bool {
+    inline fn checkCarry16(a: u16, b: u16) bool {
         return (@as(u32, a) + @as(u32, b)) > 0xFFFF;
     }
 
-    fn checkHalfCarry8(a: u8, b: u8) bool {
+    inline fn checkHalfCarry8(a: u8, b: u8) bool {
         return ((a & 0x0F) + (b & 0x0F)) & 0x10 == 0x10;
     }
 
-    fn checkHalfCarry8WithCarry(a: u8, b: u8, c: u8) bool {
+    inline fn checkHalfCarry8WithCarry(a: u8, b: u8, c: u8) bool {
         return ((a & 0x0F) + (b & 0x0F) + (c & 0x0F)) & 0x10 == 0x10;
     }
 
-    fn checkCarry8(a: u8, b: u8) bool {
+    inline fn checkCarry8(a: u8, b: u8) bool {
         const result: u16 = @as(u16, a) + @as(u16, b);
         return result > 0xFF;
     }
 
-    fn checkCarry8WithCarry(a: u8, b: u8, c: u8) bool {
+    inline fn checkCarry8WithCarry(a: u8, b: u8, c: u8) bool {
         const result: u16 = @as(u16, a) + @as(u16, b) + @as(u16, c);
         return result > 0xFF;
     }
 
-    fn checkBorrow8(a: u8, b: u8) bool {
+    inline fn checkBorrow8(a: u8, b: u8) bool {
         return b > a;
     }
 
-    fn checkBorrow8WithCarry(a: u8, b: u8, c: u8) bool {
+    inline fn checkBorrow8WithCarry(a: u8, b: u8, c: u8) bool {
         if (a < b) return true;
         if (a == b and c > 0) return true;
         return (a -% b) < c;
     }
 
-    fn checkHalfBorrow8(a: u8, b: u8) bool {
+    inline fn checkHalfBorrow8(a: u8, b: u8) bool {
         return (a & 0x0F) < (b & 0x0F);
     }
 
-    fn checkHalfBorrow8WithCarry(a: u8, b: u8, c: u8) bool {
+    inline fn checkHalfBorrow8WithCarry(a: u8, b: u8, c: u8) bool {
         const lowerA = a & 0x0F;
         const lowerB = b & 0x0F;
         const lowerC = c & 0x0F;
@@ -2424,33 +2456,34 @@ pub const Cpu = struct {
     // instruction implementation
 
     fn LD_r16_n16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
-        const lo: u8 = self.bus.read(self.pc);
-        const hi: u8 = self.bus.read(self.pc + 1);
-        self.pc +%= 2;
+        const lo: u8 = self.fetchU8();
+        const hi: u8 = self.fetchU8();
 
         hiRegister.* = hi;
         loRegister.* = lo;
     }
 
     fn LD_r8_n8(self: *Cpu, register: *u8) void {
-        const value: u8 = self.bus.read(self.pc);
-        self.pc +%= 1;
+        const value: u8 = self.fetchU8();
         register.* = value;
     }
 
-    fn LD_r8_r8(loadRegister: *u8, copyRegister: *u8) void {
+    fn LD_r8_r8(self: *Cpu, loadRegister: *u8, copyRegister: *u8) void {
+        self.tick4();
         loadRegister.* = copyRegister.*;
     }
 
     fn LD_r8_HL(self: *Cpu, register: *u8) void {
         const address = combine8BitValues(self.h, self.l);
-        register.* = self.bus.read(address);
+        register.* = self.writeU8ToRegister(register, address);
     }
 
     fn LD_HL_r8(self: *Cpu, register: *u8) void {
         const address = combine8BitValues(self.h, self.l);
-        self.bus.write(address, register.*);
+        self.writeU8(address, register.*);
     }
+
+    // modified functions up to here right now
 
     fn LD_r16_A(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
