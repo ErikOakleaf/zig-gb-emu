@@ -156,44 +156,17 @@ pub const Cpu = struct {
     }
 
     pub fn step(self: *Cpu) !u8 {
-        // handle halting
-        if (self.halted) {
-            const haltCycles = 1;
-            self.bus.tick(haltCycles * 4);
+        // TODO - add halting
 
-            // wake up on any enabled or pending interupt
-            const interruptCycles = self.checkInterrputs();
-            if (interruptCycles > 0) {
-                self.bus.tick(interruptCycles * 4);
-            }
-
-            return haltCycles + interruptCycles;
-        }
-
-        // handle DMA
-        if (self.bus.ppu.dmaActive) {
-            // consume 160 cycles when dma is done
-            self.bus.ppu.dmaActive = false;
-            self.bus.tick(self.bus.ppu.dmaCycles);
-            self.bus.ppu.dmaCycles = 0;
-
-            var i: u16 = 0;
-            while (i < 160) : (i += 1) {
-                self.bus.write(0xFE00 + i, self.bus.read(self.bus.ppu.dmaSource + i));
-            }
-
-            return 160;
-        }
+        // TODO - add dma
 
         // read opcode
-        const opcode: u8 = self.bus.read(self.pc);
+        const opcode: u8 = self.fetchU8();
 
         // for debugging
         if (self.debug) {
             try self.createStackTraceLine(opcode);
         }
-
-        self.pc +%= 1;
 
         // update joypad register
         self.bus.joypad.updateJoypadRegister();
@@ -321,16 +294,17 @@ pub const Cpu = struct {
             },
             // INC r16
             0x03 => {
-                INC_r16(&self.b, &self.c);
+                self.INC_r16(&self.b, &self.c);
             },
             0x13 => {
-                INC_r16(&self.d, &self.e);
+                self.INC_r16(&self.d, &self.e);
             },
             0x23 => {
-                INC_r16(&self.h, &self.l);
+                self.INC_r16(&self.h, &self.l);
             },
             0x33 => {
                 // increment register sp
+                self.tick4();
                 self.sp +%= 1;
             },
             // INC r8
@@ -608,15 +582,17 @@ pub const Cpu = struct {
             },
             // DEC r16
             0x0B => {
-                DEC_r16(&self.b, &self.c);
+                self.DEC_r16(&self.b, &self.c);
             },
             0x1B => {
-                DEC_r16(&self.d, &self.e);
+                self.DEC_r16(&self.d, &self.e);
             },
             0x2B => {
-                DEC_r16(&self.h, &self.l);
+                self.DEC_r16(&self.h, &self.l);
             },
             0x3B => {
+                // decrement SP
+                self.tick4();
                 self.sp = self.sp -% 1;
             },
             // LD r8, n8
@@ -1111,35 +1087,23 @@ pub const Cpu = struct {
             },
             // JP n16
             0xC2 => {
-                if (self.flagIsSet(Flag.z) == 0) {
-                    self.JP_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                const condition: bool = self.flagIsSet(Flag.z) == 0;
+                self.JP_cc_n16(condition);
             },
             0xD2 => {
-                if (self.flagIsSet(Flag.c) == 0) {
-                    self.JP_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                const condition: bool = self.flagIsSet(Flag.c) == 0;
+                self.JP_cc_n16(condition);
             },
             0xC3 => {
                 self.JP_n16();
             },
             0xCA => {
-                if (self.flagIsSet(Flag.z) == 1) {
-                    self.JP_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                const condition: bool = self.flagIsSet(Flag.z) == 1;
+                self.JP_cc_n16(condition);
             },
             0xDA => {
-                if (self.flagIsSet(Flag.c) == 1) {
-                    self.JP_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                const condition: bool = self.flagIsSet(Flag.c) == 1;
+                self.JP_cc_n16(condition);
             },
             0xE9 => {
                 // JP HL
@@ -2483,42 +2447,44 @@ pub const Cpu = struct {
         self.writeU8(address, register.*);
     }
 
-    // modified functions up to here right now
-
     fn LD_r16_A(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
-        self.bus.write(address, self.a);
+        self.writeU8(address, self.a);
     }
 
     fn LD_n16_A(self: *Cpu, address: u16) void {
-        self.bus.write(address, self.a);
+        self.writeU8(address, self.a);
     }
 
     fn LD_A_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         const address: u16 = combine8BitValues(hiRegister.*, loRegister.*);
+        self.tick4();
         self.a = self.bus.read(address);
     }
 
     fn LD_A_n16(self: *Cpu, address: u16) void {
+        self.tick4();
         self.a = self.bus.read(address);
     }
 
-    fn INC_r16(hiRegister: *u8, loRegister: *u8) void {
+    fn INC_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         var newValue: u16 = combine8BitValues(hiRegister.*, loRegister.*);
         newValue = newValue +% 1;
 
         const decomposedValues = decompose16BitValue(newValue);
 
+        self.tick(4);
         hiRegister.* = decomposedValues[0];
         loRegister.* = decomposedValues[1];
     }
 
-    fn DEC_r16(hiRegister: *u8, loRegister: *u8) void {
+    fn DEC_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
         var newValue: u16 = combine8BitValues(hiRegister.*, loRegister.*);
         newValue = newValue -% 1;
 
         const decomposedValues = decompose16BitValue(newValue);
 
+        self.tick4();
         hiRegister.* = decomposedValues[0];
         loRegister.* = decomposedValues[1];
     }
@@ -2566,6 +2532,8 @@ pub const Cpu = struct {
     fn ADD_HL_r16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
         var hl: u16 = combine8BitValues(self.h, self.l);
         const valueToAdd: u16 = combine8BitValues(hiRegister, loRegister);
+
+        self.tick4();
 
         const halfCarry = checkHalfCarry16(hl, valueToAdd);
         if (halfCarry) {
@@ -2773,37 +2741,59 @@ pub const Cpu = struct {
     }
 
     fn JR(self: *Cpu) void {
-        const offset: i8 = @bitCast(self.bus.read(self.pc));
-        self.pc +%= 1;
+        const offset: i8 = @bitCast(self.fetchU8());
 
         var pcCopy: i32 = @intCast(self.pc);
         pcCopy += offset;
 
         const newPc: u16 = @intCast(pcCopy);
 
+        self.tick4();
+
         self.pc = newPc;
     }
 
     fn JP_n16(self: *Cpu) void {
-        const lo: u8 = self.bus.read(self.pc);
-        const hi: u8 = self.bus.read(self.pc + 1);
+        const lo: u8 = self.fetchU8();
+        const hi: u8 = self.fetchU8();
         const address = combine8BitValues(hi, lo);
 
         self.pc = address;
     }
 
+    fn JP_cc_n16(self: *Cpu, condition: bool) void {
+        const lo: u8 = self.fetchU8();
+        const hi: u8 = self.fetchU8();
+        const address = combine8BitValues(hi, lo);
+
+        if (condition) {
+            self.tick4();
+            self.pc = address;
+        }
+    }
+
     fn POP_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
+        self.tick4();
         const lo: u8 = self.bus.read(self.sp);
+        self.sp +%= 1;
+
+        self.tick4();
         const hi: u8 = self.bus.read(self.sp + 1);
-        self.sp +%= 2;
+        self.sp +%= 1;
 
         hiRegister.* = hi;
         loRegister.* = lo;
     }
 
     fn PUSH_r16(self: *Cpu, hiRegister: u8, loRegister: u8) void {
+        // internal ticks
+        self.tick4();
+
+        self.tick4();
         self.sp -%= 1;
         self.bus.write(self.sp, hiRegister);
+
+        self.tick4();
         self.sp -%= 1;
         self.bus.write(self.sp, loRegister);
     }
@@ -3164,7 +3154,7 @@ pub const Cpu = struct {
         const DE = combine8BitValues(self.d, self.e);
         const HL = combine8BitValues(self.h, self.l);
         const SP = self.sp;
-        const PC = self.pc;
+        const PC = self.pc -% 1;
 
         var flagBuffer: [7]u8 = undefined; // e.g. "Z N H C"
         flagBuffer[0] = if (self.flagIsSet(Flag.z) != 0) 'Z' else '-';
