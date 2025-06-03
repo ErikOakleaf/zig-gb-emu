@@ -2,46 +2,6 @@ const std = @import("std");
 const math = std.math;
 const Bus = @import("bus.zig").Bus;
 
-pub const OP_CYCLES = [_]u8{
-    // 1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-    1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, // 0
-    0, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1, // 1
-    2, 3, 2, 2, 1, 1, 2, 1, 2, 2, 2, 2, 1, 1, 2, 1, // 2
-    2, 3, 2, 2, 3, 3, 3, 1, 2, 2, 2, 2, 1, 1, 2, 1, // 3
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 4
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 5
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 6
-    2, 2, 2, 2, 2, 2, 0, 2, 1, 1, 1, 1, 1, 1, 2, 1, // 7
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 8
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 9
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // B
-    2, 3, 3, 4, 3, 4, 2, 4, 2, 4, 3, 0, 3, 6, 2, 4, // C
-    2, 3, 3, 0, 3, 4, 2, 4, 2, 4, 3, 0, 3, 0, 2, 4, // D
-    3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4, // E
-    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4, // F
-};
-
-pub const OP_CB_CYCLES = [_]u8{
-    // 1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // 0
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // 1
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // 2
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // 3
-    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2, // 4
-    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2, // 5
-    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2, // 6
-    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2, // 7
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // 8
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // 9
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // A
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // B
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // C
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // D
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // E
-    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, // F
-};
-
 const Flag = enum(u8) {
     c = 4,
     h = 5,
@@ -71,7 +31,7 @@ pub const Cpu = struct {
     l: u8,
     sp: u16,
     pc: u16,
-    cpuCycles: u32,
+    cycles: u32,
 
     // CPU Flags
     ime: bool,
@@ -155,7 +115,7 @@ pub const Cpu = struct {
         self.bus.write(0xFFFF, 0x00); // IE
     }
 
-    pub fn step(self: *Cpu) !u8 {
+    pub fn step(self: *Cpu) !void {
         // TODO - add halting
 
         // TODO - add dma
@@ -171,17 +131,13 @@ pub const Cpu = struct {
         // update joypad register
         self.bus.joypad.updateJoypadRegister();
         // execute opcode
-        const instructionCycles = self.executeOpcode(opcode);
-
-        self.bus.tick(instructionCycles * 4);
+        self.executeOpcode(opcode);
 
         // check for interupts
         const interruptCycles = self.checkInterrputs();
         if (interruptCycles > 0) {
             self.bus.tick(interruptCycles * 4);
         }
-
-        return instructionCycles + interruptCycles;
     }
 
     fn tick(self: *Cpu) void {
@@ -197,8 +153,7 @@ pub const Cpu = struct {
     }
 
     // executes opcode returns the ammount of cycles
-    fn executeOpcode(self: *Cpu, opcode: u8) u8 {
-        const opCycles = if (opcode != 0xCB) OP_CYCLES[opcode] else OP_CB_CYCLES[self.bus.read(self.pc)];
+    fn executeOpcode(self: *Cpu, opcode: u8) void {
         // std.debug.print("executing opcode: {d}\n", .{opcode});
 
         switch (opcode) {
@@ -440,24 +395,24 @@ pub const Cpu = struct {
             // DAA
             0x27 => {
                 var adjustment: u8 = 0;
-                var carryOut = self.flagIsSet(Flag.c) == 1;
+                var carryOut = self.flagIsSet(Flag.c);
 
-                if (self.flagIsSet(Flag.n) == 1) {
-                    if (self.flagIsSet(Flag.h) == 1) {
+                if (self.flagIsSet(Flag.n)) {
+                    if (self.flagIsSet(Flag.h)) {
                         adjustment += 0x06;
                     }
 
-                    if (self.flagIsSet(Flag.c) == 1) {
+                    if (self.flagIsSet(Flag.c)) {
                         adjustment += 0x60;
                     }
 
                     self.a -%= adjustment;
                 } else {
-                    if (self.flagIsSet(Flag.h) == 1 or (self.a & 0x0F) > 0x9) {
+                    if (self.flagIsSet(Flag.h) or (self.a & 0x0F) > 0x9) {
                         adjustment += 0x06;
                     }
 
-                    if (self.flagIsSet(Flag.c) == 1 or self.a > 0x99) {
+                    if (self.flagIsSet(Flag.c) or self.a > 0x99) {
                         adjustment += 0x60;
                         carryOut = true;
                     }
@@ -493,8 +448,7 @@ pub const Cpu = struct {
             },
             // CCF
             0x3F => {
-                const flagSet: u8 = self.flagIsSet(Flag.c);
-                if (flagSet == 1) {
+                if (self.flagIsSet(Flag.c)) {
                     self.clearFlag(Flag.c);
                 } else {
                     self.setFlag(Flag.c);
@@ -1035,14 +989,14 @@ pub const Cpu = struct {
             },
             // JR cc
             0x20 => {
-                if (self.flagIsSet(Flag.z) == 0) {
+                if (!self.flagIsSet(Flag.z)) {
                     self.JR();
                 } else {
                     self.pc +%= 1;
                 }
             },
             0x30 => {
-                if (self.flagIsSet(Flag.c) == 0) {
+                if (!self.flagIsSet(Flag.c)) {
                     self.JR();
                 } else {
                     self.pc +%= 1;
@@ -1052,14 +1006,14 @@ pub const Cpu = struct {
                 self.JR();
             },
             0x28 => {
-                if (self.flagIsSet(Flag.z) == 1) {
+                if (self.flagIsSet(Flag.z)) {
                     self.JR();
                 } else {
                     self.pc +%= 1;
                 }
             },
             0x38 => {
-                if (self.flagIsSet(Flag.c) == 1) {
+                if (self.flagIsSet(Flag.c)) {
                     self.JR();
                 } else {
                     self.pc +%= 1;
@@ -1087,23 +1041,19 @@ pub const Cpu = struct {
             },
             // JP n16
             0xC2 => {
-                const condition: bool = self.flagIsSet(Flag.z) == 0;
-                self.JP_cc_n16(condition);
+                self.JP_cc_n16(Flag.z, false);
             },
             0xD2 => {
-                const condition: bool = self.flagIsSet(Flag.c) == 0;
-                self.JP_cc_n16(condition);
+                self.JP_cc_n16(Flag.c, false);
             },
             0xC3 => {
                 self.JP_n16();
             },
             0xCA => {
-                const condition: bool = self.flagIsSet(Flag.z) == 1;
-                self.JP_cc_n16(condition);
+                self.JP_cc_n16(Flag.z, true);
             },
             0xDA => {
-                const condition: bool = self.flagIsSet(Flag.c) == 1;
-                self.JP_cc_n16(condition);
+                self.JP_cc_n16(Flag.c, true);
             },
             0xE9 => {
                 // JP HL
@@ -1112,32 +1062,16 @@ pub const Cpu = struct {
             },
             // CALL n16
             0xC4 => {
-                if (self.flagIsSet(Flag.z) == 0) {
-                    self.CALL_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                self.CALL_cc_n16(Flag.z, false);
             },
             0xD4 => {
-                if (self.flagIsSet(Flag.c) == 0) {
-                    self.CALL_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                self.CALL_cc_n16(Flag.c, false);
             },
             0xCC => {
-                if (self.flagIsSet(Flag.z) == 1) {
-                    self.CALL_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                self.CALL_cc_n16(Flag.z, true);
             },
             0xDC => {
-                if (self.flagIsSet(Flag.c) == 1) {
-                    self.CALL_n16();
-                } else {
-                    self.pc +%= 2;
-                }
+                self.CALL_cc_n16(Flag.c, true);
             },
             0xCD => {
                 self.CALL_n16();
@@ -1210,19 +1144,13 @@ pub const Cpu = struct {
             },
             // RET cc
             0xC0 => {
-                if (self.flagIsSet(Flag.z) == 0) {
-                    self.RET();
-                }
+                self.RET_cc(Flag.z, false);
             },
             0xD0 => {
-                if (self.flagIsSet(Flag.c) == 0) {
-                    self.RET();
-                }
+                self.RET_cc(Flag.c, false);
             },
             0xC8 => {
-                if (self.flagIsSet(Flag.z) == 1) {
-                    self.RET();
-                }
+                self.RET_cc(Flag.z, true);
             },
             0xC9 => {
                 self.RET();
@@ -1233,9 +1161,7 @@ pub const Cpu = struct {
                 self.RET();
             },
             0xD8 => {
-                if (self.flagIsSet(Flag.c) == 1) {
-                    self.RET();
-                }
+                self.RET_cc(Flag.c, true);
             },
             0xCE => {
                 // ADC A, n8
@@ -1267,13 +1193,11 @@ pub const Cpu = struct {
             },
             // ADD SP, i8
             0xE8 => {
-                self.sp = self.ADD_SP_i8();
+                self.ADD_SP_i8();
             },
             // LD HL, SP + i8
             0xF8 => {
-                const newValue = decompose16BitValue(self.ADD_SP_i8());
-                self.h = newValue[0];
-                self.l = newValue[1];
+                self.LD_HL_SP_i8();
             },
             0xF9 => {
                 self.sp = combine8BitValues(self.h, self.l);
@@ -1287,18 +1211,12 @@ pub const Cpu = struct {
                 self.ime = true;
             },
             0xCB => {
-                const cbOpcode = self.bus.read(self.pc);
-                self.pc +%= 1;
-
+                const cbOpcode = self.fetchU8();
                 self.executeOpcodeCb(cbOpcode);
             },
 
-            // TODO might have to implement stop and halt instructions later
-
             else => {},
         }
-
-        return opCycles;
     }
 
     fn executeOpcodeCb(self: *Cpu, opcode: u8) void {
@@ -2302,7 +2220,7 @@ pub const Cpu = struct {
         }
     }
 
-    fn flagIsSet(self: *Cpu, flag: Flag) u8 {
+    fn flagIsSet(self: *Cpu, flag: Flag) bool {
         var isSet: bool = false;
         switch (flag) {
             Flag.c => {
@@ -2326,11 +2244,7 @@ pub const Cpu = struct {
                 }
             },
         }
-        if (isSet) {
-            return 1;
-        } else {
-            return 0;
-        }
+        return isSet;
     }
 
     // micro operations
@@ -2342,9 +2256,22 @@ pub const Cpu = struct {
         return value;
     }
 
+    fn fetchSP(self: *Cpu) u8 {
+        self.tick4();
+        const value: u8 = self.bus.read(self.sp);
+        self.pc +%= 1;
+        return value;
+    }
+
     fn writeU8(self: *Cpu, address: u16, value: u8) void {
         self.tick4();
         self.bus.write(address, value);
+    }
+
+    fn writeSP(self: *Cpu, value: u8) void {
+        self.tick4();
+        self.sp -%= 1;
+        self.bus.write(self.sp, value);
     }
 
     fn writeU8ToRegister(self: *Cpu, register: *u8, value: u8) void {
@@ -2439,11 +2366,18 @@ pub const Cpu = struct {
 
     fn LD_r8_HL(self: *Cpu, register: *u8) void {
         const address = combine8BitValues(self.h, self.l);
-        register.* = self.writeU8ToRegister(register, address);
+
+        // ticks for reading
+        self.tick4();
+
+        const value = self.bus.read(address);
+        self.writeU8ToRegister(register, value);
     }
 
     fn LD_HL_r8(self: *Cpu, register: *u8) void {
+        // ticks for reading
         const address = combine8BitValues(self.h, self.l);
+
         self.writeU8(address, register.*);
     }
 
@@ -2473,7 +2407,7 @@ pub const Cpu = struct {
 
         const decomposedValues = decompose16BitValue(newValue);
 
-        self.tick(4);
+        self.tick4();
         hiRegister.* = decomposedValues[0];
         loRegister.* = decomposedValues[1];
     }
@@ -2587,7 +2521,7 @@ pub const Cpu = struct {
     }
 
     fn ADC_A_r8(self: *Cpu, register: u8) void {
-        const carrySet: u8 = self.flagIsSet(Flag.c);
+        const carrySet: u8 = @intFromBool(self.flagIsSet(Flag.c));
         const halfCarry = checkHalfCarry8WithCarry(self.a, register, carrySet);
         const carry = checkCarry8WithCarry(self.a, register, carrySet);
 
@@ -2642,7 +2576,7 @@ pub const Cpu = struct {
     }
 
     fn SBC_A_r8(self: *Cpu, register: u8) void {
-        const carrySet: u8 = self.flagIsSet(Flag.c);
+        const carrySet: u8 = @intFromBool(self.flagIsSet(Flag.c));
         const halfBorrow = checkHalfBorrow8WithCarry(self.a, register, carrySet);
         const borrow = checkBorrow8WithCarry(self.a, register, carrySet);
 
@@ -2761,25 +2695,20 @@ pub const Cpu = struct {
         self.pc = address;
     }
 
-    fn JP_cc_n16(self: *Cpu, condition: bool) void {
+    fn JP_cc_n16(self: *Cpu, flag: Flag, isSet: bool) void {
         const lo: u8 = self.fetchU8();
         const hi: u8 = self.fetchU8();
         const address = combine8BitValues(hi, lo);
 
-        if (condition) {
+        if (self.flagIsSet(flag) == isSet) {
             self.tick4();
             self.pc = address;
         }
     }
 
     fn POP_r16(self: *Cpu, hiRegister: *u8, loRegister: *u8) void {
-        self.tick4();
-        const lo: u8 = self.bus.read(self.sp);
-        self.sp +%= 1;
-
-        self.tick4();
-        const hi: u8 = self.bus.read(self.sp + 1);
-        self.sp +%= 1;
+        const lo: u8 = self.fetchSP();
+        const hi: u8 = self.fetchSP();
 
         hiRegister.* = hi;
         loRegister.* = lo;
@@ -2789,23 +2718,32 @@ pub const Cpu = struct {
         // internal ticks
         self.tick4();
 
-        self.tick4();
-        self.sp -%= 1;
-        self.bus.write(self.sp, hiRegister);
-
-        self.tick4();
-        self.sp -%= 1;
-        self.bus.write(self.sp, loRegister);
+        self.writeSP(hiRegister);
+        self.writeSP(loRegister);
     }
 
     fn RET(self: *Cpu) void {
-        const lo: u8 = self.bus.read(self.sp);
-        const hi: u8 = self.bus.read(self.sp + 1);
-        self.sp +%= 2;
-
+        const lo: u8 = self.fetchSP();
+        const hi: u8 = self.fetchSP();
         const address = combine8BitValues(hi, lo);
 
+        self.tick4();
+
         self.pc = address;
+    }
+
+    fn RET_cc(self: *Cpu, flag: Flag, isSet: bool) void {
+        self.tick4();
+
+        if ((self.flagIsSet(flag) == isSet)) {
+            const lo: u8 = self.fetchSP();
+            const hi: u8 = self.fetchSP();
+            const address = combine8BitValues(hi, lo);
+
+            self.tick4();
+
+            self.pc = address;
+        }
     }
 
     fn CALL_n16(self: *Cpu) void {
@@ -2816,34 +2754,58 @@ pub const Cpu = struct {
         const returnAddress = self.pc +% 2;
         const decomposedPc = decompose16BitValue(returnAddress);
 
-        self.sp -%= 1;
-        self.bus.write(self.sp, decomposedPc[0]);
-        self.sp -%= 1;
-        self.bus.write(self.sp, decomposedPc[1]);
+        // internal ticks
+        self.tick4();
+
+        self.writeSP(decomposedPc[0]);
+        self.writeSP(decomposedPc[1]);
 
         self.pc = address;
+    }
+
+    fn CALL_cc_n16(self: *Cpu, flag: Flag, isSet: bool) void {
+        const lo: u8 = self.bus.read(self.pc);
+        const hi: u8 = self.bus.read(self.pc + 1);
+        const address = combine8BitValues(hi, lo);
+
+        const returnAddress = self.pc +% 2;
+        const decomposedPc = decompose16BitValue(returnAddress);
+
+        if (self.flagIsSet(flag) == isSet) {
+            // internal ticks
+            self.tick4();
+
+            self.writeSP(decomposedPc[0]);
+            self.writeSP(decomposedPc[1]);
+
+            self.pc = address;
+        }
     }
 
     fn RST(self: *Cpu, vec: u16) void {
         const decomposedPc = decompose16BitValue(self.pc);
 
-        self.sp -%= 1;
-        self.bus.write(self.sp, decomposedPc[0]);
-        self.sp -%= 1;
-        self.bus.write(self.sp, decomposedPc[1]);
+        self.tick4();
+
+        self.writeSP(decomposedPc[0]);
+        self.writeSP(decomposedPc[1]);
 
         self.pc = vec;
     }
 
-    fn ADD_SP_i8(self: *Cpu) u16 {
-        const valueU8: u8 = self.bus.read(self.pc);
+    fn ADD_SP_i8(self: *Cpu) void {
+        const valueU8: u8 = self.fetchU8();
         const value: i8 = @bitCast(valueU8);
-        self.pc +%= 1;
 
         const lowBits: u8 = @truncate(self.sp);
 
         const halfCarry = checkHalfCarry8(lowBits, valueU8);
         const carry = checkCarry8(lowBits, valueU8);
+
+        var spCopy: i16 = @bitCast(self.sp);
+        spCopy +%= value;
+
+        const newSp: u16 = @bitCast(spCopy);
 
         if (halfCarry) {
             self.setFlag(Flag.h);
@@ -2860,11 +2822,48 @@ pub const Cpu = struct {
         self.clearFlag(Flag.z);
         self.clearFlag(Flag.n);
 
+        // write to lower sp here
+        self.tick4();
+        self.sp = ((self.sp & 0xFF00) | (newSp & (0x00FF)));
+
+        // write to higher sp here
+        self.tick4();
+        self.sp = ((self.sp & 0x00FF) | (newSp & (0xFF00)));
+    }
+
+    fn LD_HL_SP_i8(self: *Cpu) void {
+        const valueU8: u8 = self.fetchU8();
+        const value: i8 = @bitCast(valueU8);
+
+        const lowBits: u8 = @truncate(self.sp);
+
+        const halfCarry = checkHalfCarry8(lowBits, valueU8);
+        const carry = checkCarry8(lowBits, valueU8);
+
         var spCopy: i16 = @bitCast(self.sp);
         spCopy +%= value;
 
         const newSp: u16 = @bitCast(spCopy);
-        return newSp;
+        self.sp = newSp;
+
+        const decomposedSp = decompose16BitValue(self.sp);
+        self.h = decomposedSp[0];
+        self.l = decomposedSp[1];
+
+        if (halfCarry) {
+            self.setFlag(Flag.h);
+        } else {
+            self.clearFlag(Flag.h);
+        }
+
+        if (carry) {
+            self.setFlag(Flag.c);
+        } else {
+            self.clearFlag(Flag.c);
+        }
+
+        self.clearFlag(Flag.z);
+        self.clearFlag(Flag.n);
     }
 
     // Bit shift instructions
@@ -2909,7 +2908,7 @@ pub const Cpu = struct {
     }
 
     fn RR(self: *Cpu, value: u8) u8 {
-        const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
+        const carryFlagBit: u1 = @intCast(@intFromBool(self.flagIsSet(Flag.c)));
         const valueCarry: u9 = @as(u9, value) << 1 | carryFlagBit;
 
         const rotatedValue = math.rotr(u9, valueCarry, 1);
@@ -2935,7 +2934,7 @@ pub const Cpu = struct {
     }
 
     fn RRA(self: *Cpu) void {
-        const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
+        const carryFlagBit: u1 = @intCast(@intFromBool(self.flagIsSet(Flag.c)));
         const aCarry: u9 = @as(u9, self.a) << 1 | carryFlagBit;
 
         const rotatedValue = math.rotr(u9, aCarry, 1);
@@ -2994,7 +2993,7 @@ pub const Cpu = struct {
     }
 
     fn RL(self: *Cpu, value: u8) u8 {
-        const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
+        const carryFlagBit: u1 = @intCast(@intFromBool(self.flagIsSet(Flag.c)));
         const valueCarry: u9 = @as(u9, value) << 1 | carryFlagBit;
 
         const rotatedValue = math.rotl(u9, valueCarry, 1);
@@ -3020,7 +3019,7 @@ pub const Cpu = struct {
     }
 
     fn RLA(self: *Cpu) void {
-        const carryFlagBit: u1 = @intCast(self.flagIsSet(Flag.c));
+        const carryFlagBit: u1 = @intCast(@intFromBool(self.flagIsSet(Flag.c)));
         const aCarry: u9 = @as(u9, self.a) << 1 | carryFlagBit;
 
         const rotatedValue = math.rotl(u9, aCarry, 1);
@@ -3157,13 +3156,13 @@ pub const Cpu = struct {
         const PC = self.pc -% 1;
 
         var flagBuffer: [7]u8 = undefined; // e.g. "Z N H C"
-        flagBuffer[0] = if (self.flagIsSet(Flag.z) != 0) 'Z' else '-';
+        flagBuffer[0] = if (self.flagIsSet(Flag.z)) 'Z' else '-';
         flagBuffer[1] = ' ';
-        flagBuffer[2] = if (self.flagIsSet(Flag.n) != 0) 'N' else '-';
+        flagBuffer[2] = if (self.flagIsSet(Flag.n)) 'N' else '-';
         flagBuffer[3] = ' ';
-        flagBuffer[4] = if (self.flagIsSet(Flag.h) != 0) 'H' else '-';
+        flagBuffer[4] = if (self.flagIsSet(Flag.h)) 'H' else '-';
         flagBuffer[5] = ' ';
-        flagBuffer[6] = if (self.flagIsSet(Flag.c) != 0) 'C' else '-';
+        flagBuffer[6] = if (self.flagIsSet(Flag.c)) 'C' else '-';
 
         var stackBuffer: [32]u8 = undefined; // Enough for "FF FF FF FF FF FF FF FF"
         const stackString = try std.fmt.bufPrint(stackBuffer[0..], "{X:02} {X:02} {X:02} {X:02} {X:02} {X:02} {X:02} {X:02}", .{

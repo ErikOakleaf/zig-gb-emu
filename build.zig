@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     // const optimize = std.builtin.OptimizeMode.Debug;
-    const optimize = std.builtin.OptimizeMode.ReleaseFast;
+    const optimize = std.builtin.OptimizeMode.Debug;
 
     // main executable
 

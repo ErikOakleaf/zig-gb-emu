@@ -12,7 +12,7 @@ const c = @cImport({
 });
 
 // enable debug here to get the execution trace
-const debug = false;
+const debug = true;
 
 pub fn main() !void {
     // setup memory
@@ -29,9 +29,9 @@ pub fn main() !void {
 
     var cartridge: Cartridge = undefined;
 
-    // try cartridge.load("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
+    try cartridge.load("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
     // try cartridge.load("tests/test_roms/cpu_instrs/individual/01-special.gb", allocator);
-    try cartridge.load("tests/test_roms/tetris.gb", allocator);
+    // try cartridge.load("tests/test_roms/tetris.gb", allocator);
     // try cartridge.load("tests/test_roms/Dr. Mario.gb", allocator);
     // try cartridge.load("tests/test_roms/Super Mario Land.gb", allocator);
     defer cartridge.deinit(allocator);
@@ -58,16 +58,15 @@ pub fn main() !void {
     const FRAME_TIME_MS: u32 = @intFromFloat(1000.0 / TARGET_FPS); // ~16.75 ms per frame
     const CYCLES_PER_FRAME = 70224; // Game Boy cycles per frame (4.194304 MHz / 59.7 Hz)
 
-    var totalCycles: usize = 0;
     var lastFrameTime = c.SDL_GetTicks();
 
     mainloop: while (true) {
         // tick cpu
-        totalCycles += try cpu.tick();
+        try cpu.step();
 
         // delay to keep steady fps
-        if (totalCycles >= CYCLES_PER_FRAME) {
-            totalCycles -= CYCLES_PER_FRAME;
+        if (cpu.cycles >= CYCLES_PER_FRAME) {
+            cpu.cycles -= CYCLES_PER_FRAME;
 
             const currentTime = c.SDL_GetTicks();
             const frameTime = currentTime - lastFrameTime;
