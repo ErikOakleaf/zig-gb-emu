@@ -117,6 +117,18 @@ pub const Cpu = struct {
 
     pub fn step(self: *Cpu) !void {
         // TODO - add halting
+        if (self.halted) {
+            const haltCycles = 4;
+            self.bus.tick(haltCycles);
+
+            // wake up on any enabled or pending interupt
+            const interruptCycles = self.checkInterrputs();
+            if (interruptCycles > 0) {
+                self.bus.tick(interruptCycles * 4);
+            }
+
+            self.cycles += haltCycles + interruptCycles * 4;
+        }
 
         // TODO - add dma
 
@@ -1031,12 +1043,11 @@ pub const Cpu = struct {
             },
             0xF1 => {
                 // POP AF
-                const lo: u8 = self.bus.read(self.sp);
-                const hi: u8 = self.bus.read(self.sp + 1);
-                self.sp +%= 2;
+                const lo: u8 = self.fetchSP();
+                const hi: u8 = self.fetchSP();
 
                 self.a = hi;
-                // lowest 3 bits always stay at zero in the flag register
+                // lowest 4 bits always stay at zero in the flag register
                 self.f = lo & 0xF0;
             },
             // JP n16
@@ -2259,7 +2270,7 @@ pub const Cpu = struct {
     fn fetchSP(self: *Cpu) u8 {
         self.tick4();
         const value: u8 = self.bus.read(self.sp);
-        self.pc +%= 1;
+        self.sp +%= 1;
         return value;
     }
 
@@ -2747,11 +2758,11 @@ pub const Cpu = struct {
     }
 
     fn CALL_n16(self: *Cpu) void {
-        const lo: u8 = self.bus.read(self.pc);
-        const hi: u8 = self.bus.read(self.pc + 1);
+        const lo: u8 = self.fetchU8();
+        const hi: u8 = self.fetchU8();
         const address = combine8BitValues(hi, lo);
 
-        const returnAddress = self.pc +% 2;
+        const returnAddress = self.pc;
         const decomposedPc = decompose16BitValue(returnAddress);
 
         // internal ticks
@@ -2764,11 +2775,11 @@ pub const Cpu = struct {
     }
 
     fn CALL_cc_n16(self: *Cpu, flag: Flag, isSet: bool) void {
-        const lo: u8 = self.bus.read(self.pc);
-        const hi: u8 = self.bus.read(self.pc + 1);
+        const lo: u8 = self.fetchU8();
+        const hi: u8 = self.fetchU8();
         const address = combine8BitValues(hi, lo);
 
-        const returnAddress = self.pc +% 2;
+        const returnAddress = self.pc;
         const decomposedPc = decompose16BitValue(returnAddress);
 
         if (self.flagIsSet(flag) == isSet) {

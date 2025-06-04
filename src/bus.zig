@@ -86,8 +86,8 @@ pub const Bus = struct {
                 if ((value & 0x80) != 0) {
                     // enable these two lines under here if you want to see what serial transfer is printing out
 
-                    // const serialBuffer = self.memory.read(0xFF01);
-                    // std.debug.print("{c}", .{serialBuffer});
+                    const serialBuffer = self.memory.read(0xFF01);
+                    std.debug.print("{c}", .{serialBuffer});
 
                     self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
                 }
