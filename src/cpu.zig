@@ -183,9 +183,8 @@ pub const Cpu = struct {
             },
             0x31 => {
                 // load register SP
-                const lo: u8 = self.bus.read(self.pc);
-                const hi: u8 = self.bus.read(self.pc + 1);
-                self.pc +%= 2;
+                const lo: u8 = self.fetchU8();
+                const hi: u8 = self.fetchU8();
 
                 const value: u16 = (@as(u16, hi) << 8) | lo;
 
@@ -231,9 +230,8 @@ pub const Cpu = struct {
                 self.LD_n16_A(address);
             },
             0xEA => {
-                const lo: u8 = self.bus.read(self.pc);
-                const hi: u8 = self.bus.read(self.pc + 1);
-                self.pc +%= 2;
+                const lo: u8 = self.fetchU8();
+                const hi: u8 = self.fetchU8();
 
                 const address = combine8BitValues(hi, lo);
 
@@ -241,8 +239,7 @@ pub const Cpu = struct {
             },
             // LD A, n16
             0xF0 => {
-                const value: u16 = @intCast(self.bus.read(self.pc));
-                self.pc +%= 1;
+                const value: u16 = @intCast(self.fetchU8());
                 const address = value +% 0xFF00;
                 self.LD_A_n16(address);
             },
@@ -251,9 +248,8 @@ pub const Cpu = struct {
                 self.LD_A_n16(address);
             },
             0xFA => {
-                const lo: u8 = self.bus.read(self.pc);
-                const hi: u8 = self.bus.read(self.pc + 1);
-                self.pc +%= 2;
+                const lo: u8 = self.fetchU8();
+                const hi: u8 = self.fetchU8();
 
                 const address = combine8BitValues(hi, lo);
 
@@ -470,9 +466,8 @@ pub const Cpu = struct {
             },
             // LD [n16], SP
             0x08 => {
-                const lo: u8 = self.bus.read(self.pc);
-                const hi: u8 = self.bus.read(self.pc + 1);
-                self.pc +%= 2;
+                const lo: u8 = self.fetchU8();
+                const hi: u8 = self.fetchU8();
                 const address = combine8BitValues(hi, lo);
 
                 const decomposedSp = decompose16BitValue(self.sp);
@@ -1001,10 +996,17 @@ pub const Cpu = struct {
             },
             // JR cc
             0x20 => {
+                const offset: i8 = @bitCast(self.fetchU8());
+
                 if (!self.flagIsSet(Flag.z)) {
-                    self.JR();
-                } else {
-                    self.pc +%= 1;
+                    var pcCopy: i32 = @intCast(self.pc);
+                    pcCopy += offset;
+
+                    const newPc: u16 = @intCast(pcCopy);
+
+                    self.tick4();
+
+                    self.pc = newPc;
                 }
             },
             0x30 => {
@@ -1018,10 +1020,17 @@ pub const Cpu = struct {
                 self.JR();
             },
             0x28 => {
+                const offset: i8 = @bitCast(self.fetchU8());
+
                 if (self.flagIsSet(Flag.z)) {
-                    self.JR();
-                } else {
-                    self.pc +%= 1;
+                    var pcCopy: i32 = @intCast(self.pc);
+                    pcCopy += offset;
+
+                    const newPc: u16 = @intCast(pcCopy);
+
+                    self.tick4();
+
+                    self.pc = newPc;
                 }
             },
             0x38 => {
@@ -1102,29 +1111,25 @@ pub const Cpu = struct {
             },
             0xC6 => {
                 // ADD A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.ADD_A_r8(value);
             },
             0xD6 => {
                 // SUB A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.SUB_A_r8(value);
             },
             0xE6 => {
                 // AND A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.AND_A_r8(value);
             },
             0xF6 => {
                 // OR A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.OR_A_r8(value);
             },
