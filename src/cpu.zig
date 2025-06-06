@@ -156,8 +156,6 @@ pub const Cpu = struct {
 
     // executes opcode returns the ammount of cycles
     fn executeOpcode(self: *Cpu, opcode: u8) void {
-        // std.debug.print("executing opcode: {d}\n", .{opcode});
-
         switch (opcode) {
             // NOP
             0x00 => {},
@@ -2836,21 +2834,21 @@ pub const Cpu = struct {
     }
 
     fn LD_HL_SP_i8(self: *Cpu) void {
-        const valueU8: u8 = self.fetchU8();
-        const value: i8 = @bitCast(valueU8);
+        const opperand: u8 = self.fetchU8();
+        const valueI8: i8 = @bitCast(opperand);
+        const value: i16 = @intCast(valueI8);
 
         const lowBits: u8 = @truncate(self.sp);
 
-        const halfCarry = checkHalfCarry8(lowBits, valueU8);
-        const carry = checkCarry8(lowBits, valueU8);
+        const halfCarry = checkHalfCarry8(lowBits, opperand);
+        const carry = checkCarry8(lowBits, opperand);
 
-        var spCopy: i16 = @bitCast(self.sp);
+        var spCopy: i32 = @intCast(self.sp);
         spCopy +%= value;
 
-        const newSp: u16 = @bitCast(spCopy);
-        self.sp = newSp;
+        const newSp: u16 = @bitCast(@as(i16, @truncate(spCopy)));
 
-        const decomposedSp = decompose16BitValue(self.sp);
+        const decomposedSp = decompose16BitValue(newSp);
         self.h = decomposedSp[0];
         self.l = decomposedSp[1];
 
