@@ -59,6 +59,7 @@ pub const Cpu = struct {
         self.sp = 0xFFFE;
         self.ime = false;
         self.halted = false;
+        self.cycles = 0;
 
         // debug off by default
         self.debug = debug;
@@ -220,8 +221,7 @@ pub const Cpu = struct {
             },
             // LD n16, A
             0xE0 => {
-                const value: u16 = @intCast(self.bus.read(self.pc));
-                self.pc +%= 1;
+                const value: u16 = @intCast(self.fetchU8());
                 const address = value +% 0xFF00;
                 self.LD_n16_A(address);
             },
@@ -382,8 +382,7 @@ pub const Cpu = struct {
             },
             0x36 => {
                 const address: u16 = @as(u16, self.h) << 8 | self.l;
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.bus.write(address, value);
             },
@@ -1181,29 +1180,25 @@ pub const Cpu = struct {
             },
             0xCE => {
                 // ADC A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.ADC_A_r8(value);
             },
             0xDE => {
                 // SBC A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.SBC_A_r8(value);
             },
             0xEE => {
                 // XOR A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.XOR_A_r8(value);
             },
             0xFE => {
                 // CP A, n8
-                const value = self.bus.read(self.pc);
-                self.pc +%= 1;
+                const value = self.fetchU8();
 
                 self.CP_A_r8(value);
             },
