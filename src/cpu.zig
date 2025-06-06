@@ -117,18 +117,10 @@ pub const Cpu = struct {
     }
 
     pub fn step(self: *Cpu) !void {
-        // TODO - add halting
-        if (self.halted) {
-            const haltCycles = 4;
-            self.bus.tick(haltCycles);
-
-            // wake up on any enabled or pending interupt
-            const interruptCycles = self.checkInterrputs();
-            if (interruptCycles > 0) {
-                self.bus.tick(interruptCycles * 4);
-            }
-
-            self.cycles += haltCycles + interruptCycles * 4;
+        // halt
+        while (self.halted) {
+            self.tick4();
+            self.checkInterrputs();
         }
 
         // TODO - add dma
@@ -147,10 +139,7 @@ pub const Cpu = struct {
         self.executeOpcode(opcode);
 
         // check for interupts
-        const interruptCycles = self.checkInterrputs();
-        if (interruptCycles > 0) {
-            self.bus.tick(interruptCycles * 4);
-        }
+        self.checkInterrputs();
     }
 
     fn tick(self: *Cpu) void {
@@ -2155,7 +2144,7 @@ pub const Cpu = struct {
         }
     }
 
-    fn checkInterrputs(self: *Cpu) u8 {
+    fn checkInterrputs(self: *Cpu) void {
         const pending = self.bus.read(0xFFFF) & self.bus.read(0xFF0F) & 0x1F;
         if (pending != 0) {
             // check for halt condition if halted and a pending interupt is coming exit halt
@@ -2176,16 +2165,19 @@ pub const Cpu = struct {
                 } else if ((pending & (1 << 4) != 0)) {
                     self.handleInterrupt(InterruptType.Joypad);
                 }
-
-                return 5;
             }
         }
-        return 0;
     }
 
     fn handleInterrupt(self: *Cpu, interruptType: InterruptType) void {
+        self.tick4();
+        self.tick4();
+
         self.ime = false;
         self.halted = false;
+
+        self.tick4();
+        self.tick4();
 
         // push pc to stack and jump to interupt address
         const decomposedPc = decompose16BitValue(self.pc);
@@ -2193,6 +2185,7 @@ pub const Cpu = struct {
         self.pc = INTERRUPT_ADDRESSES[@intFromEnum(interruptType)];
 
         // clear the interput flag bit
+        self.tick4();
         self.bus.write(0xFF0F, self.bus.read(0xFF0F) & ~std.math.shl(u8, 1, @intFromEnum(interruptType)));
     }
 
