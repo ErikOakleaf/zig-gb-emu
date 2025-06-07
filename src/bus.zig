@@ -38,7 +38,7 @@ pub const Bus = struct {
     // tick subsystems
 
     pub fn tick(self: *Bus, tCycles: u32) void {
-        self.timer.tick(tCycles);
+        self.timer.tick();
         self.ppu.tick(tCycles);
     }
 
@@ -95,7 +95,8 @@ pub const Bus = struct {
             0xFF04 => {
                 // if write is done to div register [0xFF04] always reset it
                 self.timer.div = 0;
-                self.timer.sysCount = 0;
+                self.timer.cycles = 0;
+                self.timer.previousCycles = 0;
             },
             // ppu memory registers
             0xFF05 => {

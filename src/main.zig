@@ -30,7 +30,8 @@ pub fn main() !void {
     var cartridge: Cartridge = undefined;
 
     // try cartridge.load("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
-    try cartridge.load("tests/test_roms/cpu_instrs/individual/03-op sp,hl.gb", allocator);
+    try cartridge.load("tests/test_roms/instr_timing/instr_timing.gb", allocator);
+    // try cartridge.load("tests/test_roms/cpu_instrs/individual/03-op sp,hl.gb", allocator);
     // try cartridge.load("tests/test_roms/tetris.gb", allocator);
     // try cartridge.load("tests/test_roms/Dr. Mario.gb", allocator);
     // try cartridge.load("tests/test_roms/Super Mario Land.gb", allocator);
@@ -64,6 +65,21 @@ pub fn main() !void {
         // tick cpu
         try cpu.step();
 
+        var sdl_event: c.SDL_Event = undefined;
+
+        while (c.SDL_PollEvent(&sdl_event)) {
+            switch (sdl_event.type) {
+                c.SDL_EVENT_QUIT => break :mainloop,
+                c.SDL_EVENT_KEY_DOWN => {
+                    cpu.bus.joypad.updateJoypadState(sdl_event.key.scancode, true);
+                },
+                c.SDL_EVENT_KEY_UP => {
+                    cpu.bus.joypad.updateJoypadState(sdl_event.key.scancode, false);
+                },
+                else => {},
+            }
+        }
+
         // delay to keep steady fps
         if (cpu.cycles >= CYCLES_PER_FRAME) {
             cpu.cycles -= CYCLES_PER_FRAME;
@@ -78,21 +94,6 @@ pub fn main() !void {
             }
 
             lastFrameTime = c.SDL_GetTicks();
-        }
-
-        var sdl_event: c.SDL_Event = undefined;
-
-        while (c.SDL_PollEvent(&sdl_event)) {
-            switch (sdl_event.type) {
-                c.SDL_EVENT_QUIT => break :mainloop,
-                c.SDL_EVENT_KEY_DOWN => {
-                    cpu.bus.joypad.updateJoypadState(sdl_event.key.scancode, true);
-                },
-                c.SDL_EVENT_KEY_UP => {
-                    cpu.bus.joypad.updateJoypadState(sdl_event.key.scancode, false);
-                },
-                else => {},
-            }
         }
     }
 

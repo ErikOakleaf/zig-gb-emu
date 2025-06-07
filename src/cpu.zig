@@ -1240,6 +1240,7 @@ pub const Cpu = struct {
             },
             0x06 => {
                 // RLC [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.RLC(value);
@@ -1269,6 +1270,7 @@ pub const Cpu = struct {
             },
             0x0E => {
                 // RRC [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.RRC(value);
@@ -1298,6 +1300,7 @@ pub const Cpu = struct {
             },
             0x16 => {
                 // RL [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.RL(value);
@@ -1327,6 +1330,7 @@ pub const Cpu = struct {
             },
             0x1E => {
                 // RR [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.RR(value);
@@ -1356,6 +1360,7 @@ pub const Cpu = struct {
             },
             0x26 => {
                 // SLA [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.SLA(value);
@@ -1385,6 +1390,7 @@ pub const Cpu = struct {
             },
             0x2E => {
                 // SRA [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.SRA(value);
@@ -1414,6 +1420,7 @@ pub const Cpu = struct {
             },
             0x3E => {
                 // SRL [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.SRL(value);
@@ -1443,6 +1450,7 @@ pub const Cpu = struct {
             },
             0x36 => {
                 // SWAP [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = self.SWAP(value);
@@ -1472,6 +1480,7 @@ pub const Cpu = struct {
             },
             0x46 => {
                 // BIT 0 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 0);
@@ -1500,6 +1509,7 @@ pub const Cpu = struct {
             },
             0x4E => {
                 // BIT 1 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 1);
@@ -1528,6 +1538,7 @@ pub const Cpu = struct {
             },
             0x56 => {
                 // BIT 2 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 2);
@@ -1556,6 +1567,7 @@ pub const Cpu = struct {
             },
             0x5E => {
                 // BIT 3 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 3);
@@ -1584,6 +1596,7 @@ pub const Cpu = struct {
             },
             0x66 => {
                 // BIT 4 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 4);
@@ -1612,6 +1625,7 @@ pub const Cpu = struct {
             },
             0x6E => {
                 // BIT 5 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 5);
@@ -1640,6 +1654,7 @@ pub const Cpu = struct {
             },
             0x76 => {
                 // BIT 6 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 6);
@@ -1668,6 +1683,7 @@ pub const Cpu = struct {
             },
             0x7E => {
                 // BIT 7 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 const value = self.bus.read(address);
                 self.BIT(value, 7);
@@ -1696,6 +1712,7 @@ pub const Cpu = struct {
             },
             0x86 => {
                 // RES 0 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 0);
@@ -1725,6 +1742,7 @@ pub const Cpu = struct {
             },
             0x8E => {
                 // RES 1 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 1);
@@ -1754,6 +1772,7 @@ pub const Cpu = struct {
             },
             0x96 => {
                 // RES 2 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 2);
@@ -1783,6 +1802,7 @@ pub const Cpu = struct {
             },
             0x9E => {
                 // RES 3 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 3);
@@ -1812,6 +1832,7 @@ pub const Cpu = struct {
             },
             0xA6 => {
                 // RES 4 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 4);
@@ -1841,6 +1862,7 @@ pub const Cpu = struct {
             },
             0xAE => {
                 // RES 5 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 5);
@@ -1870,6 +1892,7 @@ pub const Cpu = struct {
             },
             0xB6 => {
                 // RES 6 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 6);
@@ -1899,6 +1922,7 @@ pub const Cpu = struct {
             },
             0xBE => {
                 // RES 7 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = RES(value, 7);
@@ -1928,6 +1952,7 @@ pub const Cpu = struct {
             },
             0xC6 => {
                 // SET 0 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 0);
@@ -1957,6 +1982,7 @@ pub const Cpu = struct {
             },
             0xCE => {
                 // SET 1 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 1);
@@ -1986,6 +2012,7 @@ pub const Cpu = struct {
             },
             0xD6 => {
                 // SET 2 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 2);
@@ -2015,6 +2042,7 @@ pub const Cpu = struct {
             },
             0xDE => {
                 // SET 3 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 3);
@@ -2044,6 +2072,7 @@ pub const Cpu = struct {
             },
             0xE6 => {
                 // SET 4 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 4);
@@ -2073,6 +2102,7 @@ pub const Cpu = struct {
             },
             0xEE => {
                 // SET 5 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 5);
@@ -2102,6 +2132,7 @@ pub const Cpu = struct {
             },
             0xF6 => {
                 // SET 6 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 6);
@@ -2131,6 +2162,7 @@ pub const Cpu = struct {
             },
             0xFE => {
                 // SET 7 [HL]
+                self.tick4(); // read hl ticks
                 const address = combine8BitValues(self.h, self.l);
                 var value = self.bus.read(address);
                 value = SET(value, 7);
@@ -2847,6 +2879,9 @@ pub const Cpu = struct {
         spCopy +%= value;
 
         const newSp: u16 = @bitCast(@as(i16, @truncate(spCopy)));
+
+        // internal ticks
+        self.tick4();
 
         const decomposedSp = decompose16BitValue(newSp);
         self.h = decomposedSp[0];
