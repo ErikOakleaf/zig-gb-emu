@@ -92,6 +92,7 @@ pub const Bus = struct {
                     self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
                 }
             },
+            // timer memory registers
             0xFF04 => {
                 // if write is done to div register [0xFF04] always reset it
                 self.timer.div = 0;
@@ -99,16 +100,24 @@ pub const Bus = struct {
                 self.timer.incrementTima();
                 self.timer.previousCycles = 0;
             },
-            // ppu memory registers
             0xFF05 => {
-                self.timer.tima = value;
+                if (self.timer.overflowDelay == 0) {
+                    self.timer.tima = value;
+                } else if (self.timer.overflowDelay >= 4) {
+                    self.timer.tima = value;
+                    self.timer.overflowDelay = 0;
+                }
             },
             0xFF06 => {
                 self.timer.tma = value;
+                if (self.timer.overflowDelay < 4 and self.timer.overflowDelay > 0) {
+                    self.timer.tima = value;
+                }
             },
             0xFF07 => {
                 self.timer.tac = value;
             },
+            // ppu memory registers
             0xFF40 => {
                 self.ppu.lcdc = value;
             },

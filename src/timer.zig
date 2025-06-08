@@ -28,8 +28,11 @@ pub const Timer = struct {
         // if there is a overflow delay decrement it and handle overflow
         if (self.overflowDelay > 0) {
             self.overflowDelay -= 1;
-            if (self.overflowDelay == 0) {
-                self.handleOverflow();
+            if (self.overflowDelay == 4) {
+                // set TIMA to TMA
+                self.tima = self.tma;
+                //request interrupt
+                self.flagRegister.* |= 0b100;
             }
         } else {
             self.incrementTima();
@@ -56,7 +59,7 @@ pub const Timer = struct {
                 // check for overflow
                 if (newTima[1] == 1) {
                     // there is a 4‑cycle delay between TIMA overflow and interrupt
-                    self.overflowDelay = 4;
+                    self.overflowDelay = 8;
                     self.tima = 0; // TIMA reads as 0 during this delay period
                 }
             }
@@ -71,11 +74,5 @@ pub const Timer = struct {
         const oldBit = (self.previousCycles & mask) != 0;
         const newBit = (self.cycles & mask) != 0;
         return oldBit and !newBit;
-    }
-
-    fn handleOverflow(self: *Timer) void {
-        // set TIMA to TMA
-        self.tima = self.tma;
-        self.flagRegister.* |= 0b100;
     }
 };
