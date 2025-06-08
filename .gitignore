@@ -1,5 +1,6 @@
 zig-out/
 .zig-cache/
+tests/
 tests/test_roms
 deps/SDL3-3.2.14
 SDL3.dll

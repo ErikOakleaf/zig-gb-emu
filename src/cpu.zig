@@ -3213,7 +3213,7 @@ pub const Cpu = struct {
             self.bus.read(self.sp +| 7),
         });
 
-        var buffer: [128]u8 = undefined;
+        var buffer: [256]u8 = undefined;
 
         // GameBoy CPU Instruction Lookup Tables
 
@@ -3230,7 +3230,7 @@ pub const Cpu = struct {
             instructionString = CB_INSTRUCTIONS[self.bus.read(self.pc + 1)];
         }
 
-        const line = try std.fmt.bufPrint(buffer[0..], "[{s}], AF:{X:04}, BC:{X:04}, DE:{X:04} HL:{X:04} SP:{X:04}, STACK:[ {s}], PC:{X:04}, opcode:{X:02} {s}\n", .{ flagBuffer, AF, BC, DE, HL, SP, stackString, PC, opcode, instructionString });
+        const line = try std.fmt.bufPrint(buffer[0..], "[{s}], AF:{X:04}, BC:{X:04}, DE:{X:04} HL:{X:04} SP:{X:04}, STACK:[ {s}], PC:{X:04}, opcode:{X:02} {s}, cycles: {d}, div: {d}, tima: {d}\n", .{ flagBuffer, AF, BC, DE, HL, SP, stackString, PC, opcode, instructionString, self.cycles, self.bus.timer.div, self.bus.timer.tima });
 
         try self.debugFile.writeAll(line);
     }

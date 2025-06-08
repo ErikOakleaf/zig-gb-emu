@@ -96,6 +96,7 @@ pub const Bus = struct {
                 // if write is done to div register [0xFF04] always reset it
                 self.timer.div = 0;
                 self.timer.cycles = 0;
+                self.timer.incrementTima();
                 self.timer.previousCycles = 0;
             },
             // ppu memory registers

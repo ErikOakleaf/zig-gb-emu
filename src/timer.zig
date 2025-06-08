@@ -44,7 +44,7 @@ pub const Timer = struct {
         self.div = newDiv;
     }
 
-    fn incrementTima(self: *Timer) void {
+    pub fn incrementTima(self: *Timer) void {
         const enable: bool = (self.tac & 0b100) > 0;
 
         if (enable) {
