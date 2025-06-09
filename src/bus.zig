@@ -2,6 +2,7 @@ const std = @import("std");
 const fs = std.fs;
 const Memory = @import("memory.zig").Memory;
 const Timer = @import("timer.zig").Timer;
+const BITS = @import("timer.zig").BITS;
 const Cartridge = @import("cartridge.zig").Cartridge;
 const CartridgeType = @import("cartridge.zig").CartridgeType;
 const RomSize = @import("cartridge.zig").RomSize;
@@ -103,9 +104,13 @@ pub const Bus = struct {
             0xFF05 => {
                 if (self.timer.overflowDelay == 0) {
                     self.timer.tima = value;
-                } else if (self.timer.overflowDelay >= 4) {
+                    std.debug.print("normal tima write\n", .{});
+                } else if (self.timer.overflowDelay > 4) {
+                    std.debug.print("cancel timer reload\n", .{});
                     self.timer.tima = value;
                     self.timer.overflowDelay = 0;
+                } else {
+                    std.debug.print("ignored tima write\n", .{});
                 }
             },
             0xFF06 => {
@@ -115,6 +120,28 @@ pub const Bus = struct {
                 }
             },
             0xFF07 => {
+                const oldTac = self.timer.tac;
+                const oldEnable = (oldTac & (1 << 2)) != 0;
+                const oldClockSelect: u2 = @truncate(oldTac);
+                const oldMask = std.math.shl(u32, 1, BITS[@as(usize, oldClockSelect)]);
+                const oldEdge = self.timer.cycles & oldMask != 0;
+
+                const newTac = value;
+                const newEnable = (newTac & (1 << 2)) != 0;
+                const newClockSelect: u2 = @truncate(newTac);
+                const newMask = std.math.shl(u32, 1, BITS[@as(usize, newClockSelect)]);
+                const newEdge = self.timer.cycles & newMask != 0;
+
+                // check if timer get's disabled and if we might increment tima
+                if (oldEnable and !newEnable and oldEdge) {
+                    self.timer.incrementTima();
+                }
+
+                // check if the new clock select value is 1 and the current one is 0 if this is the case increment tima
+                if (newEnable and !oldEdge and newEdge) {
+                    self.timer.incrementTima();
+                }
+
                 self.timer.tac = value;
             },
             // ppu memory registers

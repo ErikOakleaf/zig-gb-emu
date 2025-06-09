@@ -119,7 +119,7 @@ pub const Cpu = struct {
     pub fn step(self: *Cpu) !void {
         // halt
         while (self.halted) {
-            self.tick4();
+            self.tick();
             self.checkInterrputs();
         }
 

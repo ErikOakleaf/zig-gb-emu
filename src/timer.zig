@@ -1,5 +1,5 @@
 const std = @import("std");
-const BITS: [4]u8 = .{ 9, 3, 5, 7 };
+pub const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 
 pub const Timer = struct {
     cycles: u32,
@@ -35,7 +35,13 @@ pub const Timer = struct {
                 self.flagRegister.* |= 0b100;
             }
         } else {
-            self.incrementTima();
+            const enable: bool = (self.tac & 0b100) > 0;
+            if (enable) {
+                const fallingEdge = self.checkFallingEdge();
+                if (fallingEdge) {
+                    self.incrementTima();
+                }
+            }
         }
 
         self.previousCycles = self.cycles;
@@ -48,21 +54,14 @@ pub const Timer = struct {
     }
 
     pub fn incrementTima(self: *Timer) void {
-        const enable: bool = (self.tac & 0b100) > 0;
+        const newTima = @addWithOverflow(self.tima, @as(u8, 1));
+        self.tima = newTima[0];
 
-        if (enable) {
-            const fallingEdge = self.checkFallingEdge();
-            if (fallingEdge) {
-                const newTima = @addWithOverflow(self.tima, @as(u8, 1));
-                self.tima = newTima[0];
-
-                // check for overflow
-                if (newTima[1] == 1) {
-                    // there is a 4‑cycle delay between TIMA overflow and interrupt
-                    self.overflowDelay = 8;
-                    self.tima = 0; // TIMA reads as 0 during this delay period
-                }
-            }
+        // check for overflow
+        if (newTima[1] == 1) {
+            // there is a 4‑cycle delay between TIMA overflow and interrupt
+            self.overflowDelay = 8;
+            self.tima = 0; // TIMA reads as 0 during this delay period
         }
     }
 
@@ -73,6 +72,7 @@ pub const Timer = struct {
         const mask: u32 = std.math.shl(u32, 1, bit);
         const oldBit = (self.previousCycles & mask) != 0;
         const newBit = (self.cycles & mask) != 0;
+
         return oldBit and !newBit;
     }
 };
