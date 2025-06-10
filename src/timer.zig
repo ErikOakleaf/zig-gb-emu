@@ -4,7 +4,8 @@ pub const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 pub const Timer = struct {
     cycles: u32,
     previousCycles: u32,
-    overflowDelay: u8,
+    overflow: bool,
+    overflowCycles: u8,
     div: u8, // 0xFF04
     tima: u8, // 0xFF05
     tma: u8, // 0xFF06
@@ -14,7 +15,8 @@ pub const Timer = struct {
     pub fn init(self: *Timer) void {
         self.cycles = 0;
         self.previousCycles = 0;
-        self.overflowDelay = 0;
+        self.overflow = false;
+        self.overflowCycles = 0;
         self.div = 0;
         self.tima = 0;
         self.tma = 0;
@@ -26,13 +28,15 @@ pub const Timer = struct {
         self.updateDiv();
 
         // if there is a overflow delay decrement it and handle overflow
-        if (self.overflowDelay > 0) {
-            self.overflowDelay -= 1;
-            if (self.overflowDelay == 4) {
+        if (self.overflow) {
+            self.overflowCycles += 1;
+            if (self.overflowCycles == 4) {
                 // set TIMA to TMA
                 self.tima = self.tma;
                 //request interrupt
                 self.flagRegister.* |= 0b100;
+            } else if (self.overflowCycles == 8) {
+                self.overflow = false;
             }
         } else {
             const enable: bool = (self.tac & 0b100) > 0;
@@ -60,12 +64,13 @@ pub const Timer = struct {
         // check for overflow
         if (newTima[1] == 1) {
             // there is a 4‑cycle delay between TIMA overflow and interrupt
-            self.overflowDelay = 8;
+            self.overflow = true;
+            self.overflowCycles = 0;
             self.tima = 0; // TIMA reads as 0 during this delay period
         }
     }
 
-    fn checkFallingEdge(self: *Timer) bool {
+    pub fn checkFallingEdge(self: *Timer) bool {
         const clockSelect: u2 = @truncate(self.tac);
         const bit = BITS[@as(usize, clockSelect)];
 

@@ -98,24 +98,24 @@ pub const Bus = struct {
                 // if write is done to div register [0xFF04] always reset it
                 self.timer.div = 0;
                 self.timer.cycles = 0;
-                self.timer.incrementTima();
+                if (self.timer.checkFallingEdge()) {
+                    self.timer.incrementTima();
+                }
                 self.timer.previousCycles = 0;
             },
             0xFF05 => {
-                if (self.timer.overflowDelay == 0) {
-                    self.timer.tima = value;
-                    std.debug.print("normal tima write\n", .{});
-                } else if (self.timer.overflowDelay > 4) {
-                    std.debug.print("cancel timer reload\n", .{});
-                    self.timer.tima = value;
-                    self.timer.overflowDelay = 0;
+                if (self.timer.overflow) {
+                    if (self.timer.overflowCycles <= 4) {
+                        self.timer.tima = value;
+                        self.timer.overflow = false;
+                    }
                 } else {
-                    std.debug.print("ignored tima write\n", .{});
+                    self.timer.tima = value;
                 }
             },
             0xFF06 => {
                 self.timer.tma = value;
-                if (self.timer.overflowDelay < 4 and self.timer.overflowDelay > 0) {
+                if (self.timer.overflow and self.timer.overflowCycles >= 4) {
                     self.timer.tima = value;
                 }
             },
@@ -138,7 +138,7 @@ pub const Bus = struct {
                 }
 
                 // check if the new clock select value is 1 and the current one is 0 if this is the case increment tima
-                if (newEnable and !oldEdge and newEdge) {
+                if (oldEnable and newEnable and oldEdge and !newEdge) {
                     self.timer.incrementTima();
                 }
 
