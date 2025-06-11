@@ -2,6 +2,7 @@ const std = @import("std");
 pub const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 
 pub const Timer = struct {
+    enabled: bool,
     cycles: u32,
     previousCycles: u32,
     overflow: bool,
@@ -39,8 +40,7 @@ pub const Timer = struct {
                 self.overflow = false;
             }
         } else {
-            const enable: bool = (self.tac & 0b100) > 0;
-            if (enable) {
+            if (self.enabled) {
                 const fallingEdge = self.checkFallingEdge();
                 if (fallingEdge) {
                     self.incrementTima();
@@ -79,5 +79,56 @@ pub const Timer = struct {
         const newBit = (self.cycles & mask) != 0;
 
         return oldBit and !newBit;
+    }
+
+    pub fn writeTima(self: *Timer, value: u8) void {
+        if (self.overflow) {
+            if (self.overflowCycles <= 4) {
+                self.tima = value;
+                self.overflow = false;
+            }
+        } else {
+            self.tima = value;
+        }
+    }
+
+    pub fn writeTma(self: *Timer, value: u8) void {
+        self.tma = value;
+        if (self.overflow and self.overflowCycles >= 4) {
+            self.tima = value;
+        }
+    }
+
+    pub fn writeTac(self: *Timer, value: u8) void {
+        const oldTac = self.tac;
+        const oldEnable = (oldTac & (1 << 2)) != 0;
+        const oldClockSelect: u2 = @truncate(oldTac);
+        const oldMask = std.math.shl(u32, 1, BITS[@as(usize, oldClockSelect)]);
+        const oldEdge = self.cycles & oldMask != 0;
+
+        const newTac = value;
+        const newEnable = (newTac & (1 << 2)) != 0;
+        const newClockSelect: u2 = @truncate(newTac);
+        const newMask = std.math.shl(u32, 1, BITS[@as(usize, newClockSelect)]);
+        const newEdge = self.cycles & newMask != 0;
+
+        // check if timer get's disabled and if we might increment tima
+        if (oldEnable and !newEnable and oldEdge) {
+            self.incrementTima();
+        }
+
+        // check if the new clock select value is 0 and the current one is 1 if this is the case increment tima
+        if (oldEnable and newEnable and oldEdge and !newEdge) {
+            self.incrementTima();
+        }
+
+        // enable / disable timer based on 3 bit of tac register
+        if (newEnable) {
+            self.enabled = true;
+        } else {
+            self.enabled = false;
+        }
+
+        self.tac = value;
     }
 };
