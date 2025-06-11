@@ -3234,7 +3234,7 @@ pub const Cpu = struct {
             instructionString = CB_INSTRUCTIONS[self.bus.read(self.pc + 1)];
         }
 
-        const line = try std.fmt.bufPrint(buffer[0..], "[{s}], AF:{X:04}, BC:{X:04}, DE:{X:04} HL:{X:04} SP:{X:04}, STACK:[ {s}], PC:{X:04}, opcode:{X:02} {s}, cycles: {d}, div: {d}, tima: {d}\n", .{ flagBuffer, AF, BC, DE, HL, SP, stackString, PC, opcode, instructionString, self.cycles, self.bus.timer.div, self.bus.timer.tima });
+        const line = try std.fmt.bufPrint(buffer[0..], "[{s}], AF:{X:04}, BC:{X:04}, DE:{X:04} HL:{X:04} SP:{X:04}, STACK:[ {s}], PC:{X:04}, opcode:{X:02} {s:<15}, cycles: {d:06}, div: {d:03}, tima: {d:03}\n", .{ flagBuffer, AF, BC, DE, HL, SP, stackString, PC, opcode, instructionString, self.cycles, self.bus.timer.div, self.bus.timer.tima });
 
         try self.debugFile.writeAll(line);
     }

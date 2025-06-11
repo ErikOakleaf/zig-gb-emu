@@ -101,6 +101,7 @@ pub const Timer = struct {
             if (self.overflowCycles <= 4) {
                 self.tima = value;
                 self.overflow = false;
+                self.overflowCycles = 0;
             }
         } else {
             self.tima = value;
