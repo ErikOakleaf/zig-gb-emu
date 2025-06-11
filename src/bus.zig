@@ -96,12 +96,7 @@ pub const Bus = struct {
             // timer memory registers
             0xFF04 => {
                 // if write is done to div register [0xFF04] always reset it
-                self.timer.div = 0;
-                self.timer.cycles = 0;
-                if (self.timer.checkFallingEdge()) {
-                    self.timer.incrementTima();
-                }
-                self.timer.previousCycles = 0;
+                self.timer.writeDiv();
             },
             0xFF05 => {
                 self.timer.writeTima(value);

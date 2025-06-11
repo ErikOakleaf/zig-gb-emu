@@ -3,8 +3,8 @@ pub const BITS: [4]u8 = .{ 9, 3, 5, 7 };
 
 pub const Timer = struct {
     enabled: bool,
-    cycles: u32,
-    previousCycles: u32,
+    cycles: u16,
+    previousCycles: u16,
     overflow: bool,
     overflowCycles: u8,
     div: u8, // 0xFF04
@@ -14,6 +14,7 @@ pub const Timer = struct {
     flagRegister: *u8,
 
     pub fn init(self: *Timer) void {
+        self.enabled = false;
         self.cycles = 0;
         self.previousCycles = 0;
         self.overflow = false;
@@ -28,23 +29,28 @@ pub const Timer = struct {
         self.cycles +%= 1;
         self.updateDiv();
 
-        // if there is a overflow delay decrement it and handle overflow
-        if (self.overflow) {
+        // if there is a overflow increment overflowcycles and handle overflow
+        if (self.overflow or self.overflowCycles > 0) {
             self.overflowCycles += 1;
+
             if (self.overflowCycles == 4) {
                 // set TIMA to TMA
                 self.tima = self.tma;
                 //request interrupt
                 self.flagRegister.* |= 0b100;
-            } else if (self.overflowCycles == 8) {
+
                 self.overflow = false;
             }
-        } else {
-            if (self.enabled) {
-                const fallingEdge = self.checkFallingEdge();
-                if (fallingEdge) {
-                    self.incrementTima();
-                }
+
+            if (self.overflowCycles == 8) {
+                self.overflowCycles = 0;
+            }
+        }
+
+        if (self.enabled and !self.overflow) {
+            const fallingEdge = self.checkFallingEdge();
+            if (fallingEdge) {
+                self.incrementTima();
             }
         }
 
@@ -79,6 +85,15 @@ pub const Timer = struct {
         const newBit = (self.cycles & mask) != 0;
 
         return oldBit and !newBit;
+    }
+
+    pub fn writeDiv(self: *Timer) void {
+        self.div = 0;
+        self.cycles = 0;
+        if (self.checkFallingEdge()) {
+            self.incrementTima();
+        }
+        self.previousCycles = 0;
     }
 
     pub fn writeTima(self: *Timer, value: u8) void {
