@@ -61,7 +61,7 @@ pub fn main() !void {
     try cpu.init(&bus, debug);
 
     const TARGET_FPS = 59.7;
-    const FRAME_TIME_MS: u32 = @intFromFloat(1000.0 / TARGET_FPS); // ~16.75 ms per frame
+    const FRAME_TIME_MS: f64 = 1000.0 / TARGET_FPS; // ~16.75 ms per frame
     const CYCLES_PER_FRAME = 70224; // Game Boy cycles per frame (4.194304 MHz / 59.7 Hz)
 
     var lastFrameTime = c.SDL_GetTicks();
@@ -90,10 +90,10 @@ pub fn main() !void {
             cpu.cycles -= CYCLES_PER_FRAME;
 
             const currentTime = c.SDL_GetTicks();
-            const frameTime = currentTime - lastFrameTime;
+            const frameTime: f64 = @floatFromInt(currentTime - lastFrameTime);
 
             if (frameTime < FRAME_TIME_MS) {
-                const delayTime: u32 = @intCast(FRAME_TIME_MS - frameTime);
+                const delayTime: u32 = @intFromFloat(FRAME_TIME_MS - frameTime);
                 c.SDL_Delay(delayTime);
                 // std.debug.print("slept for {d} ms", .{delayTime});
             }

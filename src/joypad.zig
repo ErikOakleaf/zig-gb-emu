@@ -83,14 +83,14 @@ pub const Joypad = struct {
                     self.joypadState.buttonState |= 0b0010;
                 }
             },
-            c.SDL_SCANCODE_Q => {
+            c.SDL_SCANCODE_BACKSPACE => {
                 if (pressed) {
                     self.joypadState.buttonState &= 0b1011;
                 } else {
                     self.joypadState.buttonState |= 0b0100;
                 }
             },
-            c.SDL_SCANCODE_W => {
+            c.SDL_SCANCODE_RETURN => {
                 if (pressed) {
                     self.joypadState.buttonState &= 0b0111;
                 } else {
