@@ -142,7 +142,7 @@ pub const Cpu = struct {
 
     fn tick(self: *Cpu) void {
         self.cycles += 1;
-        self.bus.tick(1); // change the bus tick function later but for now just send it one t cycle
+        self.bus.tick(); // change the bus tick function later but for now just send it one t cycle
 
         // DMA
         if (self.bus.ppu.dmaActive) {

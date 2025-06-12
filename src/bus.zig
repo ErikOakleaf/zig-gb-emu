@@ -38,9 +38,9 @@ pub const Bus = struct {
     }
     // tick subsystems
 
-    pub fn tick(self: *Bus, tCycles: u32) void {
+    pub fn tick(self: *Bus) void {
         self.timer.tick();
-        self.ppu.tick(tCycles);
+        self.ppu.tick();
     }
 
     // MMU
@@ -124,7 +124,7 @@ pub const Bus = struct {
             },
             // ppu memory registers
             0xFF40 => {
-                self.ppu.lcdc = value;
+                self.ppu.writeLCDC(value);
             },
             0xFF41 => {
                 self.ppu.stat = value;
