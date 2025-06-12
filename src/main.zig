@@ -62,7 +62,7 @@ pub fn main() !void {
 
     const TARGET_FPS = 59.7;
     const FRAME_TIME_MS: u32 = @intFromFloat(1000.0 / TARGET_FPS); // ~16.75 ms per frame
-    const CYCLES_PER_FRAME = 70224 * 4; // Game Boy cycles per frame (4.194304 MHz / 59.7 Hz)
+    const CYCLES_PER_FRAME = 70224; // Game Boy cycles per frame (4.194304 MHz / 59.7 Hz)
 
     var lastFrameTime = c.SDL_GetTicks();
 
