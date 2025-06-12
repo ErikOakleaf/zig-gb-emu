@@ -123,8 +123,6 @@ pub const Cpu = struct {
             self.checkInterrputs();
         }
 
-        // TODO - add dma
-
         // read opcode
         const opcode: u8 = self.fetchU8();
 
@@ -145,6 +143,23 @@ pub const Cpu = struct {
     fn tick(self: *Cpu) void {
         self.cycles += 1;
         self.bus.tick(1); // change the bus tick function later but for now just send it one t cycle
+
+        // DMA
+        if (self.bus.ppu.dmaActive) {
+
+            // every four cycles we copy memory into OAM
+            if (self.bus.ppu.dmaCycles % 4 == 0) {
+                const index = self.bus.ppu.dmaCycles / 4;
+                self.bus.dmaWrite(0xFE00 + index, self.bus.dmaRead(self.bus.ppu.dmaSource + index));
+            }
+
+            if (self.bus.ppu.dmaCycles == 640) {
+                self.bus.ppu.dmaActive = false;
+                self.bus.ppu.dmaCycles = 0;
+            }
+
+            self.bus.ppu.dmaCycles += 1;
+        }
     }
 
     fn tick4(self: *Cpu) void {

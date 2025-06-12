@@ -98,7 +98,7 @@ pub const Timer = struct {
 
     pub fn writeTima(self: *Timer, value: u8) void {
         if (self.overflow) {
-            if (self.overflowCycles <= 4) {
+            if (self.overflowCycles < 4) {
                 self.tima = value;
                 self.overflow = false;
                 self.overflowCycles = 0;
@@ -129,7 +129,7 @@ pub const Timer = struct {
         const newEdge = self.cycles & newMask != 0;
 
         // check if timer get's disabled and if we might increment tima
-        if (oldEnable and !newEnable and oldEdge) {
+        if (oldEnable and oldEdge and !newEnable) {
             self.incrementTima();
         }
 
@@ -139,11 +139,7 @@ pub const Timer = struct {
         }
 
         // enable / disable timer based on 3 bit of tac register
-        if (newEnable) {
-            self.enabled = true;
-        } else {
-            self.enabled = false;
-        }
+        self.enabled = newEnable;
 
         self.tac = value;
     }

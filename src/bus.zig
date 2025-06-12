@@ -44,8 +44,23 @@ pub const Bus = struct {
     }
 
     // MMU
+    pub inline fn write(self: *Bus, address: u16, value: u8) void {
+        self.writeInternal(address, value, false);
+    }
 
-    pub fn write(self: *Bus, address: u16, value: u8) void {
+    pub inline fn dmaWrite(self: *Bus, address: u16, value: u8) void {
+        self.writeInternal(address, value, true);
+    }
+
+    pub fn writeInternal(self: *Bus, address: u16, value: u8, isDma: bool) void {
+        if (self.ppu.dmaActive) {
+            const inHram = (address >= 0xFF80 and address <= 0xFFFE);
+            // if we are not in hram writes are ignored
+            if (!inHram and !isDma) {
+                return;
+            }
+        }
+
         switch (address) {
             0x0000...0x7FFF => {
                 // memory bank switching TODO - make this work completely and make it into helper functions
@@ -87,8 +102,8 @@ pub const Bus = struct {
                 if ((value & 0x80) != 0) {
                     // enable these two lines under here if you want to see what serial transfer is printing out
 
-                    const serialBuffer = self.memory.read(0xFF01);
-                    std.debug.print("{c}", .{serialBuffer});
+                    // const serialBuffer = self.memory.read(0xFF01);
+                    // std.debug.print("{c}", .{serialBuffer});
 
                     self.memory.write(address, self.memory.read(address) & ~@as(u8, 0x80));
                 }
@@ -131,7 +146,7 @@ pub const Bus = struct {
                 self.ppu.dma = value;
                 self.ppu.dmaSource = @as(u16, value) << 8;
                 self.ppu.dmaActive = true;
-                self.ppu.dmaCycles = 160;
+                self.ppu.dmaCycles = 0;
             },
             0xFF47 => {
                 self.ppu.bgp = value;
@@ -154,13 +169,22 @@ pub const Bus = struct {
         }
     }
 
-    pub fn read(self: *Bus, address: u16) u8 {
+    pub inline fn read(self: *Bus, address: u16) u8 {
+        return self.readInternal(address, false);
+    }
+
+    pub inline fn dmaRead(self: *Bus, address: u16) u8 {
+        return self.readInternal(address, true);
+    }
+
+    pub fn readInternal(self: *Bus, address: u16, isDma: bool) u8 {
         // check if DMA is active and if the adress is not in oam or hram
         if (self.ppu.dmaActive) {
-            const inOam = (address >= 0xFE00 and address <= 0xFE9F);
             const inHram = (address >= 0xFF80 and address <= 0xFFFE);
-            if (!(inOam or inHram)) {
-                return 0x0;
+            // if we are not in hram we will give the value that DMA is currently copying over
+            if (!inHram and !isDma) {
+                const dmaIndex = (self.ppu.dmaCycles / 4);
+                return self.dmaRead(self.ppu.dmaSource + dmaIndex);
             }
         }
 

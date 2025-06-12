@@ -25,7 +25,7 @@ pub const PPU = struct {
 
     // dma fields
     dmaActive: bool,
-    dmaCycles: u8,
+    dmaCycles: u16,
     dmaSource: u16,
 
     // renderer

@@ -12,7 +12,7 @@ const c = @cImport({
 });
 
 // enable debug here to get the execution trace
-const debug = true;
+const debug = false;
 
 pub fn main() !void {
     // setup memory
@@ -31,14 +31,15 @@ pub fn main() !void {
 
     // try cartridge.load("tests/test_roms/cpu_instrs/cpu_instrs.gb", allocator);
     // try cartridge.load("tests/test_roms/instr_timing/instr_timing.gb", allocator);
-    // try cartridge.load("tests/MooneyeTestSuite/acceptance/timer/tma_write_reloading.gb", allocator);
-    try cartridge.load("tests/MooneyeTestSuite/acceptance/timer/rapid_toggle.gb", allocator);
+    // try cartridge.load("tests/MooneyeTestSuite/acceptance/timer/tim01_div_trigger.gb", allocator);
+    // try cartridge.load("tests/MooneyeTestSuite/acceptance/timer/rapid_toggle.gb", allocator);
     // try cartridge.load("tests/MooneyeTestSuite/acceptance/instr/daa.gb", allocator);
     // try cartridge.load("tests/MooneyeTestSuite/acceptance/timer/tim10_div_trigger.gb", allocator);
+    // try cartridge.load("tests/gbmicrotest/timer_tima_phase_a.gb", allocator);
     // try cartridge.load("tests/test_roms/cpu_instrs/individual/03-op sp,hl.gb", allocator);
     // try cartridge.load("tests/test_roms/tetris.gb", allocator);
     // try cartridge.load("tests/test_roms/Dr. Mario.gb", allocator);
-    // try cartridge.load("tests/test_roms/Super Mario Land.gb", allocator);
+    try cartridge.load("tests/test_roms/Super Mario Land.gb", allocator);
     defer cartridge.deinit(allocator);
 
     // setup ppu
