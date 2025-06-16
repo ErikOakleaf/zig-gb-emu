@@ -10,9 +10,29 @@ pub const PPUMode = enum {
     VBlank,
 };
 
+const FifoPhase = enum {
+    FetchTile,
+    GetTileDataLow,
+    GetTileDataHigh,
+    Sleep,
+    PushPixels,
+};
+
+const FifoState = struct {
+    phase: FifoPhase,
+    fetcherX: u8,
+    windowX: u8,
+    windowY: u8,
+    incrementY: bool,
+    currentTileAddress: u16,
+    dataLow: u8,
+    dataHigh: u8,
+};
+
 const Sprite = struct {
     xPosition: u8,
-    oamIndex: u8,
+    attributes: u8,
+    tileIndex: u8,
     tileRow: u8,
 };
 
@@ -54,8 +74,13 @@ pub const PPU = struct {
     ppuMode: PPUMode,
     spriteBuffer: SpriteBuffer,
     pixelBuffer: [144][160]u2,
+    scanlineX: u8,
+
+    // fifo fields
     backgroundFifo: [16]u2,
     objectFifo: [16]u2,
+    fifoState: FifoState,
+    fifoCycles: u16,
 
     // dma fields
     dmaActive: bool,
@@ -94,8 +119,21 @@ pub const PPU = struct {
         self.ppuMode = PPUMode.OAMSearch;
         self.spriteBuffer = undefined;
         self.pixelBuffer = undefined;
+        self.scanlineX = 0;
+
         self.backgroundFifo = undefined;
         self.objectFifo = undefined;
+        self.fifoState = FifoState{
+            .phase = FifoPhase.FetchTile,
+            .fetcherX = 0,
+            .windowX = 0,
+            .windowY = 0,
+            .incrementY = false,
+            .currentTileAddress = undefined,
+            .dataHigh = undefined,
+            .dataLow = undefined,
+        };
+        self.fifoCycles = 0;
 
         self.dmaActive = false;
         self.dmaCycles = 160;
@@ -109,18 +147,61 @@ pub const PPU = struct {
             return;
         }
 
-        self.cycles +%= 1;
-
         switch (self.ppuMode) {
             PPUMode.OAMSearch => {
-                if (self.cycles >= 80) {
-                    self.cycles -= 80;
-                    self.ppuMode = PPUMode.PixelTransfer;
-                }
+                // TODO - maybe implement something to do with dma here.
+                self.oamSearch();
             },
-            PPUMode.PixelTransfer => {},
+            PPUMode.PixelTransfer => {
+                self.pixelTransfer();
+            },
             PPUMode.HBlank => {},
             PPUMode.VBlank => {},
+        }
+
+        self.cycles +%= 1;
+    }
+
+    inline fn oamSearch(self: *PPU) void {
+        if (self.cycles >= 80) {
+            self.cycles -= 80;
+            self.scanOamLine();
+            self.ppuMode = PPUMode.PixelTransfer;
+        }
+    }
+
+    inline fn pixelTransfer(self: *PPU) void {
+
+        // fifo
+        self.fifoCycles += 1;
+        switch (self.fifoState.phase) {
+            FifoPhase.FetchTile => {
+                if (self.fifoCycles == 2) {
+                    self.fetchTile();
+                    self.fifoCycles -= 2;
+                }
+            },
+            FifoPhase.GetTileDataLow => {
+                if (self.fifoCycles == 2) {
+                    // do something here
+                    self.fifoCycles -= 2;
+                }
+            },
+            FifoPhase.GetTileDataHigh => {
+                if (self.fifoCycles == 2) {
+                    // do something here
+                    self.fifoCycles -= 2;
+                }
+            },
+            FifoPhase.Sleep => {
+                if (self.fifoCycles == 2) {
+                    // do something here
+                    self.fifoCycles -= 2;
+                }
+            },
+            FifoPhase.PushPixels => {
+                // try to do something every fifoCycle
+            },
         }
     }
 
@@ -137,7 +218,8 @@ pub const PPU = struct {
             if (scanlineBelowOrAtTop and scanlineAboveBottom and isVisible) {
                 self.spriteBuffer.buffer[spriteCount] = Sprite{
                     .xPosition = self.oam[i + 1],
-                    .oamIndex = i,
+                    .attributes = self.oam[i + 3],
+                    .tileIndex = self.oam[i + 2],
                     .tileRow = self.ly + 16 - self.oam[i],
                 };
                 spriteCount += 1;
@@ -145,6 +227,45 @@ pub const PPU = struct {
         }
 
         self.spriteBuffer.spriteCount = spriteCount;
+    }
+
+    // pixel fifo functions
+    fn fetchTile(self: *PPU) void {
+        const usingWindow = self.windowEnable and self.scanlineX >= (self.wx - 7) and self.ly >= self.wy;
+
+        var tileColumn: u8 = undefined;
+        var tileRow: u8 = undefined;
+        var pixelRowInTile: u8 = undefined;
+
+        // tile x and y cordinates
+        if (usingWindow) {
+            tileColumn = self.fifoState.windowX & 0x1F;
+            tileRow = (self.fifoState.windowY / 8) & 0x1F;
+            pixelRowInTile = self.fifoState.windowY & 0x07;
+        } else {
+            tileColumn = ((self.scx / 8) +% self.fifoState.fetcherX) & 0x1F;
+            tileRow = ((self.ly +% self.scy) / 8) & 0x1F;
+            pixelRowInTile = (self.ly +% self.scy) & 0x07;
+        }
+
+        const tileMapBaseAddress = if (usingWindow) {
+            (if (self.windowTileMapArea) 0x1C00 else 0x1800);
+        } else {
+            (if (self.bgTileMapArea) 0x1C00 else 0x1800);
+        };
+
+        const tileMapAddress = tileMapBaseAddress + (tileRow * 32) + tileColumn;
+        const tileId = self.vram[tileMapAddress];
+
+        const tileDataBaseAddress = if (self.bgWindowTileDataArea) 0x0000 else 0x0800;
+
+        const address = if (self.bgWindowTileDataArea) {
+            tileDataBaseAddress + (tileId * 16) + (pixelRowInTile * 2);
+        } else {
+            const signedTileId: i8 = @bitCast(tileId);
+            tileDataBaseAddress + (signedTileId * 16) + (pixelRowInTile * 2);
+        };
+        self.fifoState.currentTileAddress = address;
     }
 
     pub fn writeLCDC(self: *PPU, value: u8) void {
