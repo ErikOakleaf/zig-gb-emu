@@ -56,7 +56,7 @@ const Queue = struct {
         self.count += 1;
     }
 
-    fn pop(self: *Queue) u8 {
+    fn pop(self: *Queue) u2 {
         if (self.count == 0) {
             return 0; // for now just return 0 as a placeholder for nothing maybe should return null in the future
         }
@@ -64,6 +64,13 @@ const Queue = struct {
         self.head = (self.head + 1) % 16;
         self.count -= 1;
         return pixel;
+    }
+
+    fn clear(self: *Queue) void {
+        self.data = undefined;
+        self.head = 0;
+        self.tail = 0;
+        self.count = 0;
     }
 };
 
@@ -175,28 +182,56 @@ pub const PPU = struct {
 
         switch (self.ppuMode) {
             PPUMode.OAMSearch => {
-                // TODO - maybe implement something to do with dma here.
-                self.oamSearch();
+                if (self.cycles >= 80) {
+                    self.scanOamLine();
+                    self.setMode(PPUMode.PixelTransfer);
+                }
             },
             PPUMode.PixelTransfer => {
-                self.pixelTransfer();
+                if (self.scanlineX >= 160) {
+                    self.setMode(PPUMode.HBlank);
+                    // Reset for next scanline
+                    self.bgFifo.clear();
+                    self.fifoState.phase = FifoPhase.FetchTile;
+                    self.fifoState.fetcherX = 0;
+                    self.scanlineX = 0;
+                } else {
+                    self.pixelTransferFifo();
+                }
             },
-            PPUMode.HBlank => {},
-            PPUMode.VBlank => {},
+            PPUMode.HBlank => {
+                if (self.cycles >= 456) {
+                    self.ly += 1;
+                    self.cycles = 0;
+
+                    if (self.ly < 144) {
+                        self.setMode(PPUMode.OAMSearch);
+                    } else if (self.ly == 144) {
+                        self.setMode(PPUMode.VBlank);
+                        self.renderer.renderPixelBuffer(self.pixelBuffer);
+                        self.flagRegister.* |= 1 << 1;
+                    }
+
+                    // std.debug.print("ly {}\n", .{self.ly});
+                }
+            },
+            PPUMode.VBlank => {
+                if (self.cycles != 0 and self.cycles % 456 == 0) {
+                    self.ly += 1;
+                }
+
+                if (self.cycles == 4560) {
+                    self.ly = 0;
+                    self.cycles = 0;
+                    self.setMode(PPUMode.OAMSearch);
+                }
+            },
         }
 
-        self.cycles +%= 1;
+        self.cycles += 1;
     }
 
-    inline fn oamSearch(self: *PPU) void {
-        if (self.cycles >= 80) {
-            self.cycles -= 80;
-            self.scanOamLine();
-            self.ppuMode = PPUMode.PixelTransfer;
-        }
-    }
-
-    fn pixelTransfer(self: *PPU) void {
+    fn pixelTransferFifo(self: *PPU) void {
         self.fifoCycles += 1;
 
         // fifo
@@ -211,6 +246,7 @@ pub const PPU = struct {
             FifoPhase.GetTileDataLow => {
                 if (self.fifoCycles == 2) {
                     self.fifoState.dataLow = self.vram[self.fifoState.currentTileAddress];
+
                     self.fifoCycles -= 2;
                     self.fifoState.phase = FifoPhase.GetTileDataHigh;
                 }
@@ -223,14 +259,22 @@ pub const PPU = struct {
                 }
             },
             FifoPhase.PushPixels => {
-                // try to do something every fifoCycle
+                if (self.bgFifo.count <= 8) {
+                    self.pushPixels();
+                    self.fifoState.fetcherX += 1;
+                    self.fifoState.phase = FifoPhase.FetchTile;
+                    self.fifoCycles = 0;
+                }
             },
             FifoPhase.Sleep => {
                 if (self.fifoCycles == 2) {
                     // do something here
-                    self.fifoCycles -= 2;
                 }
             },
+        }
+
+        if (self.bgFifo.count > 0) {
+            self.popPixel();
         }
     }
 
@@ -282,14 +326,14 @@ pub const PPU = struct {
         else
             (if (self.bgTileMapArea) @as(u16, 0x1C00) else @as(u16, 0x1800));
 
-        const tileMapAddress = tileMapBaseAddress + (tileRow * 32) + tileColumn;
+        const tileMapAddress: u16 = tileMapBaseAddress + (@as(u16, @intCast(tileRow)) * 32) + tileColumn;
         const tileId = self.vram[tileMapAddress];
 
         const tileDataBaseAddress: u16 = if (self.bgWindowTileDataArea) 0x0000 else 0x0800;
 
         var address: u16 = undefined;
         if (self.bgWindowTileDataArea) {
-            address = tileDataBaseAddress + (tileId * 16) + (pixelRowInTile * 2);
+            address = tileDataBaseAddress + (@as(u16, @intCast(tileId)) * 16) + (pixelRowInTile * 2);
         } else {
             const signedTileId: i8 = @bitCast(tileId);
             const addressSigned: i32 = @as(i32, @intCast(tileDataBaseAddress)) + (signedTileId * 16) + (pixelRowInTile * 2);
@@ -299,18 +343,43 @@ pub const PPU = struct {
         self.fifoState.currentTileAddress = address;
     }
 
-    fn pushPixels(self: *PPU) bool {
-        // push bg / window fifo pixels
-        if (self.bgFifo.count <= 8) {
-            for (0..8) |i| {
-                const bitPosition: u3 = @intCast(7 - i);
-                const highBit: u1 = @truncate(self.fifoState.dataHigh >> bitPosition);
-                const lowBit: u1 = @truncate(self.fifoState.dataLow >> bitPosition);
-                const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
-                self.bgFifo.push(pixel);
-            }
+    fn pushPixels(self: *PPU) void {
+        for (0..8) |i| {
+            const bitPosition: u3 = @intCast(7 - i);
+            const highBit: u1 = @truncate(self.fifoState.dataHigh >> bitPosition);
+            const lowBit: u1 = @truncate(self.fifoState.dataLow >> bitPosition);
+            const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
+            self.bgFifo.push(pixel);
         }
-        return false;
+    }
+
+    fn popPixel(self: *PPU) void {
+        const rawPixel: u3 = @as(u3, @intCast(self.bgFifo.pop())) * 2;
+        const palletteShiftedPixel: u2 = @truncate(self.bgp >> rawPixel);
+        self.pixelBuffer[self.ly][self.scanlineX] = palletteShiftedPixel;
+        self.scanlineX += 1;
+    }
+
+    fn setMode(self: *PPU, mode: PPUMode) void {
+        self.ppuMode = mode;
+        self.stat &= 0xFC;
+        switch (mode) {
+            PPUMode.OAMSearch => {
+                self.stat |= 2;
+            },
+            PPUMode.PixelTransfer => {
+                self.stat |= 3;
+            },
+            PPUMode.HBlank => {
+                self.stat |= 0;
+            },
+            PPUMode.VBlank => {
+                self.stat |= 1;
+            },
+        }
+
+        // interrupt handling
+
     }
 
     pub fn writeLCDC(self: *PPU, value: u8) void {
