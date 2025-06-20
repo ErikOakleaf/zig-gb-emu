@@ -18,8 +18,10 @@ const FifoPhase = enum {
     PushPixels,
 };
 
-const FifoState = struct {
+const Fifo = struct {
+    queue: Queue,
     phase: FifoPhase,
+    cycles: u16,
     fetcherX: u8,
     windowX: u8,
     windowY: u8,
@@ -112,10 +114,8 @@ pub const PPU = struct {
     pixelsToDiscard: u8,
 
     // fifo fields
-    bgFifo: Queue,
+    bgFifo: Fifo,
     objFifo: Queue,
-    fifoState: FifoState,
-    fifoCycles: u16,
 
     // dma fields
     dmaActive: bool,
@@ -157,10 +157,11 @@ pub const PPU = struct {
         self.scanlineX = 0;
         self.pixelsToDiscard = 0;
 
-        self.bgFifo = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 };
         self.objFifo = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 };
-        self.fifoState = FifoState{
+        self.bgFifo = Fifo{
+            .queue = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 },
             .phase = FifoPhase.FetchTile,
+            .cycles = 0,
             .fetcherX = 0,
             .windowX = 0,
             .windowY = 0,
@@ -170,7 +171,7 @@ pub const PPU = struct {
             .dataLow = undefined,
             .usingWindow = false,
         };
-        self.fifoCycles = 0;
+        self.bgFifo.cycles = 0;
 
         self.dmaActive = false;
         self.dmaCycles = 160;
@@ -198,9 +199,9 @@ pub const PPU = struct {
                 if (self.scanlineX >= 160) {
                     self.setMode(PPUMode.HBlank);
                     // Reset for next scanline
-                    self.bgFifo.clear();
-                    self.fifoState.phase = FifoPhase.FetchTile;
-                    self.fifoState.fetcherX = 0;
+                    self.bgFifo.queue.clear();
+                    self.bgFifo.phase = FifoPhase.FetchTile;
+                    self.bgFifo.fetcherX = 0;
                     self.scanlineX = 0;
                 } else {
                     self.pixelTransferFifo();
@@ -227,8 +228,8 @@ pub const PPU = struct {
 
                 if (self.cycles == 4560) {
                     self.ly = 0;
-                    self.fifoState.windowY = 0;
-                    self.fifoState.incrementWindowY = false;
+                    self.bgFifo.windowY = 0;
+                    self.bgFifo.incrementWindowY = false;
                     self.cycles = 0;
                     self.setMode(PPUMode.OAMSearch);
                 }
@@ -237,64 +238,9 @@ pub const PPU = struct {
     }
 
     fn pixelTransferFifo(self: *PPU) void {
-        self.fifoCycles += 1;
+        self.tickBgFifo();
 
-        const wasUsingWindow = self.fifoState.usingWindow;
-        self.fifoState.usingWindow = self.windowEnable and self.scanlineX >= (self.wx - 7) and self.ly >= self.wy;
-
-        // If we just enterd window mode we clear the fifo and reset the fifo
-        if (self.fifoState.usingWindow and !wasUsingWindow) {
-            self.bgFifo.clear();
-            self.fifoState.phase = FifoPhase.FetchTile;
-            self.fifoState.windowX = 0;
-            self.fifoCycles = 0;
-            self.pixelsToDiscard = 0;
-        }
-
-        // fifo
-        switch (self.fifoState.phase) {
-            FifoPhase.FetchTile => {
-                if (self.fifoCycles == 2) {
-                    self.fetchTile();
-                    self.fifoCycles -= 2;
-                    self.fifoState.phase = FifoPhase.GetTileDataLow;
-                }
-            },
-            FifoPhase.GetTileDataLow => {
-                if (self.fifoCycles == 2) {
-                    self.fifoState.dataLow = self.vram[self.fifoState.currentTileAddress];
-
-                    self.fifoCycles -= 2;
-                    self.fifoState.phase = FifoPhase.GetTileDataHigh;
-                }
-            },
-            FifoPhase.GetTileDataHigh => {
-                if (self.fifoCycles == 2) {
-                    self.fifoState.dataHigh = self.vram[self.fifoState.currentTileAddress + 1];
-                    self.fifoCycles -= 2;
-                    self.fifoState.phase = FifoPhase.PushPixels;
-                }
-            },
-            FifoPhase.PushPixels => {
-                if (self.bgFifo.count <= 8) {
-                    self.pushPixels();
-                    if (self.fifoState.usingWindow) {
-                        self.fifoState.windowX += 1;
-                    } else {
-                        self.fifoState.fetcherX += 1;
-                    }
-                    self.fifoState.phase = FifoPhase.FetchTile;
-                    self.fifoCycles = 0;
-                }
-            },
-            FifoPhase.Sleep => {
-                if (self.fifoCycles == 2) {
-                    // do something here
-                }
-            },
-        }
-
-        if (self.bgFifo.count > 0) {
+        if (self.bgFifo.queue.count > 0) {
             self.popPixel();
         }
     }
@@ -324,23 +270,82 @@ pub const PPU = struct {
     }
 
     // pixel fifo functions
+
+    fn tickBgFifo(self: *PPU) void {
+        self.bgFifo.cycles += 1;
+
+        const wasUsingWindow = self.bgFifo.usingWindow;
+        self.bgFifo.usingWindow = self.windowEnable and self.scanlineX >= (self.wx - 7) and self.ly >= self.wy;
+
+        // If we just enterd window mode we clear the fifo and reset the fifo
+        if (self.bgFifo.usingWindow and !wasUsingWindow) {
+            self.bgFifo.queue.clear();
+            self.bgFifo.phase = FifoPhase.FetchTile;
+            self.bgFifo.windowX = 0;
+            self.bgFifo.cycles = 0;
+            self.pixelsToDiscard = 0;
+        }
+
+        switch (self.bgFifo.phase) {
+            FifoPhase.FetchTile => {
+                if (self.bgFifo.cycles == 2) {
+                    self.fetchTile();
+                    self.bgFifo.cycles -= 2;
+                    self.bgFifo.phase = FifoPhase.GetTileDataLow;
+                }
+            },
+            FifoPhase.GetTileDataLow => {
+                if (self.bgFifo.cycles == 2) {
+                    self.bgFifo.dataLow = self.vram[self.bgFifo.currentTileAddress];
+
+                    self.bgFifo.cycles -= 2;
+                    self.bgFifo.phase = FifoPhase.GetTileDataHigh;
+                }
+            },
+            FifoPhase.GetTileDataHigh => {
+                if (self.bgFifo.cycles == 2) {
+                    self.bgFifo.dataHigh = self.vram[self.bgFifo.currentTileAddress + 1];
+                    self.bgFifo.cycles -= 2;
+                    self.bgFifo.phase = FifoPhase.PushPixels;
+                }
+            },
+            FifoPhase.PushPixels => {
+                if (self.bgFifo.queue.count <= 8) {
+                    self.pushPixels();
+                    if (self.bgFifo.usingWindow) {
+                        self.bgFifo.windowX += 1;
+                    } else {
+                        self.bgFifo.fetcherX += 1;
+                    }
+                    self.bgFifo.phase = FifoPhase.FetchTile;
+                    self.bgFifo.cycles = 0;
+                }
+            },
+            FifoPhase.Sleep => {
+                if (self.bgFifo.cycles == 2) {
+                    // do something here
+                }
+            },
+        }
+    }
+
     fn fetchTile(self: *PPU) void {
         var tileColumn: u8 = undefined;
         var tileRow: u8 = undefined;
         var pixelRowInTile: u8 = undefined;
 
-        if (self.fifoState.usingWindow) {
-            tileColumn = self.fifoState.windowX & 0x1F;
-            tileRow = (self.fifoState.windowY / 8) & 0x1F;
-            pixelRowInTile = self.fifoState.windowY & 0x07;
-            self.fifoState.incrementWindowY = true;
+        if (self.bgFifo.usingWindow) {
+            tileColumn = self.bgFifo.windowX & 0x1F;
+            tileRow = (self.bgFifo.windowY / 8) & 0x1F;
+            pixelRowInTile = self.bgFifo.windowY & 0x07;
+            self.bgFifo.incrementWindowY = true;
         } else {
-            tileColumn = ((self.scx / 8) +% self.fifoState.fetcherX) & 0x1F;
+            tileColumn = ((self.scx / 8) +% self.bgFifo.fetcherX) & 0x1F;
             tileRow = ((self.ly +% self.scy) / 8) & 0x1F;
             pixelRowInTile = (self.ly +% self.scy) & 0x07;
         }
 
-        const tileMapBaseAddress: u16 = if (self.fifoState.usingWindow)
+        const tileMapBaseAddress: u16 = if (self.bgFifo.usingWindow)
             (if (self.windowTileMapArea) @as(u16, 0x1C00) else @as(u16, 0x1800))
         else
             (if (self.bgTileMapArea) @as(u16, 0x1C00) else @as(u16, 0x1800));
@@ -359,21 +364,21 @@ pub const PPU = struct {
             address = @intCast(addressSigned);
         }
 
-        self.fifoState.currentTileAddress = address;
+        self.bgFifo.currentTileAddress = address;
     }
 
     fn pushPixels(self: *PPU) void {
         for (0..8) |i| {
             const bitPosition: u3 = @intCast(7 - i);
-            const highBit: u1 = @truncate(self.fifoState.dataHigh >> bitPosition);
-            const lowBit: u1 = @truncate(self.fifoState.dataLow >> bitPosition);
+            const highBit: u1 = @truncate(self.bgFifo.dataHigh >> bitPosition);
+            const lowBit: u1 = @truncate(self.bgFifo.dataLow >> bitPosition);
             const pixel: u2 = @as(u2, highBit) << 1 | lowBit;
-            self.bgFifo.push(pixel);
+            self.bgFifo.queue.push(pixel);
         }
     }
 
     fn popPixel(self: *PPU) void {
-        const rawPixel: u3 = @as(u3, @intCast(self.bgFifo.pop())) * 2;
+        const rawPixel: u3 = @as(u3, @intCast(self.bgFifo.queue.pop())) * 2;
 
         // if there is a pixel to discard don't add it to the pixel buffer
         if (self.pixelsToDiscard > 0) {
@@ -412,8 +417,8 @@ pub const PPU = struct {
 
     fn incrementLy(self: *PPU) void {
         self.ly += 1;
-        if (self.fifoState.incrementWindowY) {
-            self.fifoState.windowY += 1;
+        if (self.bgFifo.incrementWindowY) {
+            self.bgFifo.windowY += 1;
         }
     }
 
