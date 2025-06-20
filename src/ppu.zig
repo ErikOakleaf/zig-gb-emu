@@ -27,6 +27,7 @@ const FifoState = struct {
     currentTileAddress: u16,
     dataLow: u8,
     dataHigh: u8,
+    usingWindow: bool,
 };
 
 const Sprite = struct {
@@ -108,6 +109,7 @@ pub const PPU = struct {
     spriteBuffer: SpriteBuffer,
     pixelBuffer: [144][160]u2,
     scanlineX: u8,
+    pixelsToDiscard: u8,
 
     // fifo fields
     bgFifo: Queue,
@@ -153,6 +155,7 @@ pub const PPU = struct {
         self.spriteBuffer = undefined;
         self.pixelBuffer = undefined;
         self.scanlineX = 0;
+        self.pixelsToDiscard = 0;
 
         self.bgFifo = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 };
         self.objFifo = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 };
@@ -165,6 +168,7 @@ pub const PPU = struct {
             .currentTileAddress = undefined,
             .dataHigh = undefined,
             .dataLow = undefined,
+            .usingWindow = false,
         };
         self.fifoCycles = 0;
 
@@ -180,11 +184,14 @@ pub const PPU = struct {
             return;
         }
 
+        self.cycles += 1;
+
         switch (self.ppuMode) {
             PPUMode.OAMSearch => {
                 if (self.cycles >= 80) {
                     self.scanOamLine();
                     self.setMode(PPUMode.PixelTransfer);
+                    self.pixelsToDiscard = self.scx & 0x07;
                 }
             },
             PPUMode.PixelTransfer => {
@@ -201,7 +208,7 @@ pub const PPU = struct {
             },
             PPUMode.HBlank => {
                 if (self.cycles >= 456) {
-                    self.ly += 1;
+                    self.incrementLy();
                     self.cycles = 0;
 
                     if (self.ly < 144) {
@@ -211,28 +218,38 @@ pub const PPU = struct {
                         self.renderer.renderPixelBuffer(self.pixelBuffer);
                         self.flagRegister.* |= 1 << 1;
                     }
-
-                    // std.debug.print("ly {}\n", .{self.ly});
                 }
             },
             PPUMode.VBlank => {
                 if (self.cycles != 0 and self.cycles % 456 == 0) {
-                    self.ly += 1;
+                    self.incrementLy();
                 }
 
                 if (self.cycles == 4560) {
                     self.ly = 0;
+                    self.fifoState.windowY = 0;
+                    self.fifoState.incrementWindowY = false;
                     self.cycles = 0;
                     self.setMode(PPUMode.OAMSearch);
                 }
             },
         }
-
-        self.cycles += 1;
     }
 
     fn pixelTransferFifo(self: *PPU) void {
         self.fifoCycles += 1;
+
+        const wasUsingWindow = self.fifoState.usingWindow;
+        self.fifoState.usingWindow = self.windowEnable and self.scanlineX >= (self.wx - 7) and self.ly >= self.wy;
+
+        // If we just enterd window mode we clear the fifo and reset the fifo
+        if (self.fifoState.usingWindow and !wasUsingWindow) {
+            self.bgFifo.clear();
+            self.fifoState.phase = FifoPhase.FetchTile;
+            self.fifoState.windowX = 0;
+            self.fifoCycles = 0;
+            self.pixelsToDiscard = 0;
+        }
 
         // fifo
         switch (self.fifoState.phase) {
@@ -261,7 +278,11 @@ pub const PPU = struct {
             FifoPhase.PushPixels => {
                 if (self.bgFifo.count <= 8) {
                     self.pushPixels();
-                    self.fifoState.fetcherX += 1;
+                    if (self.fifoState.usingWindow) {
+                        self.fifoState.windowX += 1;
+                    } else {
+                        self.fifoState.fetcherX += 1;
+                    }
                     self.fifoState.phase = FifoPhase.FetchTile;
                     self.fifoCycles = 0;
                 }
@@ -304,13 +325,11 @@ pub const PPU = struct {
 
     // pixel fifo functions
     fn fetchTile(self: *PPU) void {
-        const usingWindow = self.windowEnable and self.scanlineX >= (self.wx - 7) and self.ly >= self.wy;
-
         var tileColumn: u8 = undefined;
         var tileRow: u8 = undefined;
         var pixelRowInTile: u8 = undefined;
 
-        if (usingWindow) {
+        if (self.fifoState.usingWindow) {
             tileColumn = self.fifoState.windowX & 0x1F;
             tileRow = (self.fifoState.windowY / 8) & 0x1F;
             pixelRowInTile = self.fifoState.windowY & 0x07;
@@ -321,7 +340,7 @@ pub const PPU = struct {
             pixelRowInTile = (self.ly +% self.scy) & 0x07;
         }
 
-        const tileMapBaseAddress: u16 = if (usingWindow)
+        const tileMapBaseAddress: u16 = if (self.fifoState.usingWindow)
             (if (self.windowTileMapArea) @as(u16, 0x1C00) else @as(u16, 0x1800))
         else
             (if (self.bgTileMapArea) @as(u16, 0x1C00) else @as(u16, 0x1800));
@@ -329,14 +348,14 @@ pub const PPU = struct {
         const tileMapAddress: u16 = tileMapBaseAddress + (@as(u16, @intCast(tileRow)) * 32) + tileColumn;
         const tileId = self.vram[tileMapAddress];
 
-        const tileDataBaseAddress: u16 = if (self.bgWindowTileDataArea) 0x0000 else 0x0800;
+        const tileDataBaseAddress: u16 = if (self.bgWindowTileDataArea) 0x0000 else 0x1000;
 
         var address: u16 = undefined;
         if (self.bgWindowTileDataArea) {
             address = tileDataBaseAddress + (@as(u16, @intCast(tileId)) * 16) + (pixelRowInTile * 2);
         } else {
             const signedTileId: i8 = @bitCast(tileId);
-            const addressSigned: i32 = @as(i32, @intCast(tileDataBaseAddress)) + (signedTileId * 16) + (pixelRowInTile * 2);
+            const addressSigned: i32 = @as(i32, @intCast(tileDataBaseAddress)) + (@as(i16, @intCast(signedTileId)) * 16) + (pixelRowInTile * 2);
             address = @intCast(addressSigned);
         }
 
@@ -355,10 +374,19 @@ pub const PPU = struct {
 
     fn popPixel(self: *PPU) void {
         const rawPixel: u3 = @as(u3, @intCast(self.bgFifo.pop())) * 2;
+
+        // if there is a pixel to discard don't add it to the pixel buffer
+        if (self.pixelsToDiscard > 0) {
+            self.pixelsToDiscard -= 1;
+            return;
+        }
+
         const palletteShiftedPixel: u2 = @truncate(self.bgp >> rawPixel);
         self.pixelBuffer[self.ly][self.scanlineX] = palletteShiftedPixel;
         self.scanlineX += 1;
     }
+
+    // misc helper functions
 
     fn setMode(self: *PPU, mode: PPUMode) void {
         self.ppuMode = mode;
@@ -381,6 +409,15 @@ pub const PPU = struct {
         // interrupt handling
 
     }
+
+    fn incrementLy(self: *PPU) void {
+        self.ly += 1;
+        if (self.fifoState.incrementWindowY) {
+            self.fifoState.windowY += 1;
+        }
+    }
+
+    // for memory
 
     pub fn writeLCDC(self: *PPU, value: u8) void {
         self.lcdc = value;

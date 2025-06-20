@@ -26,7 +26,7 @@ pub const Timer = struct {
     }
 
     pub fn tick(self: *Timer) void {
-        // TODO - check the timer when ppu is back in action incrementing cycles was moved to the bottom now
+        self.cycles +%= 1;
         self.updateDiv();
         // if there is a overflow increment overflowcycles and handle overflow
         if (self.overflow or self.overflowCycles > 0) {
@@ -54,8 +54,6 @@ pub const Timer = struct {
         }
 
         self.previousCycles = self.cycles;
-
-        self.cycles +%= 1;
     }
 
     fn updateDiv(self: *Timer) void {
