@@ -19,7 +19,7 @@ const FifoPhase = enum {
 };
 
 const Fifo = struct {
-    queue: Queue,
+    queue: Queue(u2, 16),
     phase: FifoPhase,
     cycles: u16,
     fetcherX: u8,
@@ -44,38 +44,73 @@ const SpriteBuffer = struct {
     buffer: [10]Sprite,
 };
 
-const Queue = struct {
-    data: [16]u2,
-    head: u8,
-    tail: u8,
-    count: u8,
+fn Queue(comptime T: type, size: u8) type {
+    return struct {
+        data: [size]T,
+        head: u8,
+        tail: u8,
+        count: u8,
 
-    fn push(self: *Queue, pixel: u2) void {
-        if (self.count >= 16) {
-            return;
+        fn push(self: *Queue(T, size), item: T) void {
+            if (self.count >= 16) {
+                return;
+            }
+            self.data[self.tail] = item;
+            self.tail = (self.tail + 1) % 16;
+            self.count += 1;
         }
-        self.data[self.tail] = pixel;
-        self.tail = (self.tail + 1) % 16;
-        self.count += 1;
-    }
 
-    fn pop(self: *Queue) u2 {
-        if (self.count == 0) {
-            return 0; // for now just return 0 as a placeholder for nothing maybe should return null in the future
+        fn pop(self: *Queue(T, size)) T {
+            if (self.count == 0) {
+                return 0; // for now just return 0 as a placeholder for nothing maybe should return null in the future
+            }
+            const pixel = self.data[self.head];
+            self.head = (self.head + 1) % 16;
+            self.count -= 1;
+            return pixel;
         }
-        const pixel = self.data[self.head];
-        self.head = (self.head + 1) % 16;
-        self.count -= 1;
-        return pixel;
-    }
 
-    fn clear(self: *Queue) void {
-        self.data = undefined;
-        self.head = 0;
-        self.tail = 0;
-        self.count = 0;
-    }
-};
+        fn clear(self: *Queue(T, size)) void {
+            self.data = undefined;
+            self.head = 0;
+            self.tail = 0;
+            self.count = 0;
+        }
+    };
+}
+
+// const Queue = struct {
+//     data: [16]u2,
+//     head: u8,
+//     tail: u8,
+//     count: u8,
+//
+//     fn push(self: *Queue, pixel: u2) void {
+//         if (self.count >= 16) {
+//             return;
+//         }
+//         self.data[self.tail] = pixel;
+//         self.tail = (self.tail + 1) % 16;
+//         self.count += 1;
+//     }
+//
+//     fn pop(self: *Queue) u2 {
+//         if (self.count == 0) {
+//             return 0; // for now just return 0 as a placeholder for nothing maybe should return null in the future
+//         }
+//         const pixel = self.data[self.head];
+//         self.head = (self.head + 1) % 16;
+//         self.count -= 1;
+//         return pixel;
+//     }
+//
+//     fn clear(self: *Queue) void {
+//         self.data = undefined;
+//         self.head = 0;
+//         self.tail = 0;
+//         self.count = 0;
+//     }
+// };
 
 pub const PPU = struct {
     // memory
@@ -115,7 +150,7 @@ pub const PPU = struct {
 
     // fifo fields
     bgFifo: Fifo,
-    objFifo: Queue,
+    objFifo: Fifo,
 
     // dma fields
     dmaActive: bool,
@@ -157,9 +192,8 @@ pub const PPU = struct {
         self.scanlineX = 0;
         self.pixelsToDiscard = 0;
 
-        self.objFifo = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 };
         self.bgFifo = Fifo{
-            .queue = Queue{ .data = undefined, .count = 0, .head = 0, .tail = 0 },
+            .queue = undefined,
             .phase = FifoPhase.FetchTile,
             .cycles = 0,
             .fetcherX = 0,
@@ -171,7 +205,21 @@ pub const PPU = struct {
             .dataLow = undefined,
             .usingWindow = false,
         };
-        self.bgFifo.cycles = 0;
+        self.bgFifo.queue.clear();
+        self.objFifo = Fifo{
+            .queue = undefined,
+            .phase = FifoPhase.FetchTile,
+            .cycles = 0,
+            .fetcherX = 0,
+            .windowX = 0,
+            .windowY = 0,
+            .incrementWindowY = false,
+            .currentTileAddress = undefined,
+            .dataHigh = undefined,
+            .dataLow = undefined,
+            .usingWindow = false,
+        };
+        self.objFifo.queue.clear();
 
         self.dmaActive = false;
         self.dmaCycles = 160;
@@ -237,14 +285,6 @@ pub const PPU = struct {
         }
     }
 
-    fn pixelTransferFifo(self: *PPU) void {
-        self.tickBgFifo();
-
-        if (self.bgFifo.queue.count > 0) {
-            self.popPixel();
-        }
-    }
-
     fn scanOamLine(self: *PPU) void {
         var spriteCount: u8 = 0;
         var i: u8 = 0;
@@ -269,6 +309,15 @@ pub const PPU = struct {
         self.spriteBuffer.spriteCount = spriteCount;
     }
 
+    fn pixelTransferFifo(self: *PPU) void {
+        self.tickBgFifo();
+        self.tickObjFifo();
+
+        if (self.bgFifo.queue.count > 0) {
+            self.popPixel();
+        }
+    }
+
     // pixel fifo functions
 
     fn tickBgFifo(self: *PPU) void {
@@ -289,7 +338,7 @@ pub const PPU = struct {
         switch (self.bgFifo.phase) {
             FifoPhase.FetchTile => {
                 if (self.bgFifo.cycles == 2) {
-                    self.fetchTile();
+                    self.fetchBgTile();
                     self.bgFifo.cycles -= 2;
                     self.bgFifo.phase = FifoPhase.GetTileDataLow;
                 }
@@ -329,7 +378,47 @@ pub const PPU = struct {
         }
     }
 
-    fn fetchTile(self: *PPU) void {
+    fn tickObjFifo(self: *PPU) void {
+        self.objFifo.cycles += 1;
+
+        switch (self.objFifo.phase) {
+            FifoPhase.FetchTile => {
+                if (self.objFifo.cycles == 2) {
+                    // get the correct tile to get here
+                    self.objFifo.cycles -= 2;
+                    self.objFifo.phase = FifoPhase.GetTileDataLow;
+                }
+            },
+            FifoPhase.GetTileDataLow => {
+                if (self.objFifo.cycles == 2) {
+                    self.objFifo.dataLow = self.vram[self.objFifo.currentTileAddress];
+                    self.objFifo.cycles -= 2;
+                    self.objFifo.phase = FifoPhase.GetTileDataHigh;
+                }
+            },
+            FifoPhase.GetTileDataHigh => {
+                if (self.objFifo.cycles == 2) {
+                    self.objFifo.dataHigh = self.vram[self.objFifo.currentTileAddress + 1];
+                    self.objFifo.cycles -= 2;
+                    self.objFifo.phase = FifoPhase.PushPixels;
+                }
+            },
+            FifoPhase.PushPixels => {
+                if (self.objFifo.queue.count <= 8) {
+                    // push the pixels here
+                    self.objFifo.phase = FifoPhase.FetchTile;
+                    self.objFifo.cycles = 0;
+                }
+            },
+            FifoPhase.Sleep => {
+                if (self.objFifo.cycles == 2) {
+                    // do something here
+                }
+            },
+        }
+    }
+
+    fn fetchBgTile(self: *PPU) void {
         var tileColumn: u8 = undefined;
         var tileRow: u8 = undefined;
         var pixelRowInTile: u8 = undefined;
