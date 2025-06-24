@@ -118,9 +118,10 @@ pub const Cpu = struct {
 
     pub fn step(self: *Cpu) !void {
         // halt
-        while (self.halted) {
+        if (self.halted) {
             self.tick();
             self.checkInterrputs();
+            return;
         }
 
         // read opcode
@@ -153,12 +154,15 @@ pub const Cpu = struct {
                 self.bus.dmaWrite(0xFE00 + index, self.bus.dmaRead(self.bus.ppu.dmaSource + index));
             }
 
-            if (self.bus.ppu.dmaCycles == 640) {
+            self.bus.ppu.dmaCycles += 1;
+
+            std.debug.print("dma cycle {}\n", .{self.bus.ppu.dmaCycles});
+
+            if (self.bus.ppu.dmaCycles >= 639) {
                 self.bus.ppu.dmaActive = false;
+                std.debug.print("dma unactive\n", .{});
                 self.bus.ppu.dmaCycles = 0;
             }
-
-            self.bus.ppu.dmaCycles += 1;
         }
     }
 

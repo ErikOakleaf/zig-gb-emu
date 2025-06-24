@@ -39,11 +39,6 @@ const Sprite = struct {
     tileRow: u8,
 };
 
-const SpriteBuffer = struct {
-    spriteCount: u8,
-    buffer: [10]Sprite,
-};
-
 fn Queue(comptime T: type, size: u8) type {
     return struct {
         data: [size]T,
@@ -79,39 +74,6 @@ fn Queue(comptime T: type, size: u8) type {
     };
 }
 
-// const Queue = struct {
-//     data: [16]u2,
-//     head: u8,
-//     tail: u8,
-//     count: u8,
-//
-//     fn push(self: *Queue, pixel: u2) void {
-//         if (self.count >= 16) {
-//             return;
-//         }
-//         self.data[self.tail] = pixel;
-//         self.tail = (self.tail + 1) % 16;
-//         self.count += 1;
-//     }
-//
-//     fn pop(self: *Queue) u2 {
-//         if (self.count == 0) {
-//             return 0; // for now just return 0 as a placeholder for nothing maybe should return null in the future
-//         }
-//         const pixel = self.data[self.head];
-//         self.head = (self.head + 1) % 16;
-//         self.count -= 1;
-//         return pixel;
-//     }
-//
-//     fn clear(self: *Queue) void {
-//         self.data = undefined;
-//         self.head = 0;
-//         self.tail = 0;
-//         self.count = 0;
-//     }
-// };
-
 pub const PPU = struct {
     // memory
     vram: [0x2000]u8, // 0x8000 - 0x9FFF
@@ -143,7 +105,7 @@ pub const PPU = struct {
     // ppu fields
     cycles: u32,
     ppuMode: PPUMode,
-    spriteBuffer: SpriteBuffer,
+    spriteBuffer: Queue(Sprite, 10),
     pixelBuffer: [144][160]u2,
     scanlineX: u8,
     pixelsToDiscard: u8,
@@ -265,7 +227,7 @@ pub const PPU = struct {
                     } else if (self.ly == 144) {
                         self.setMode(PPUMode.VBlank);
                         self.renderer.renderPixelBuffer(self.pixelBuffer);
-                        self.flagRegister.* |= 1 << 1;
+                        self.flagRegister.* |= 1;
                     }
                 }
             },
@@ -286,9 +248,8 @@ pub const PPU = struct {
     }
 
     fn scanOamLine(self: *PPU) void {
-        var spriteCount: u8 = 0;
         var i: u8 = 0;
-        while (i < self.oam.len and spriteCount < 10) : (i += 4) {
+        while (i < self.oam.len and self.spriteBuffer.count < 10) : (i += 4) {
             const spriteHeight: u8 = if (self.objSize) 16 else 8;
 
             const scanlineBelowOrAtTop = self.ly + 16 >= self.oam[i];
@@ -296,17 +257,15 @@ pub const PPU = struct {
             const isVisible = self.oam[i + 1] > 0;
 
             if (scanlineBelowOrAtTop and scanlineAboveBottom and isVisible) {
-                self.spriteBuffer.buffer[spriteCount] = Sprite{
+                const sprite = Sprite{
                     .xPosition = self.oam[i + 1],
                     .attributes = self.oam[i + 3],
                     .tileIndex = self.oam[i + 2],
                     .tileRow = self.ly + 16 - self.oam[i],
                 };
-                spriteCount += 1;
+                self.spriteBuffer.push(sprite);
             }
         }
-
-        self.spriteBuffer.spriteCount = spriteCount;
     }
 
     fn pixelTransferFifo(self: *PPU) void {
@@ -323,8 +282,12 @@ pub const PPU = struct {
     fn tickBgFifo(self: *PPU) void {
         self.bgFifo.cycles += 1;
 
+        // check if the window is in use
+
         const wasUsingWindow = self.bgFifo.usingWindow;
         self.bgFifo.usingWindow = self.windowEnable and self.scanlineX >= (self.wx - 7) and self.ly >= self.wy;
+
+        self.bgFifo.usingWindow = false;
 
         // If we just enterd window mode we clear the fifo and reset the fifo
         if (self.bgFifo.usingWindow and !wasUsingWindow) {
@@ -508,6 +471,16 @@ pub const PPU = struct {
         self.ly += 1;
         if (self.bgFifo.incrementWindowY) {
             self.bgFifo.windowY += 1;
+        }
+
+        // check LYC = LY coincidence and fire interupt
+        if (self.ly == self.lyc) {
+            self.stat |= (1 << 2);
+            if (self.stat & (1 << 6) != 0) {
+                self.flagRegister.* |= (1 << 1);
+            }
+        } else {
+            self.stat &= ~@as(u8, (1 << 2));
         }
     }
 

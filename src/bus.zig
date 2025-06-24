@@ -127,7 +127,9 @@ pub const Bus = struct {
                 self.ppu.writeLCDC(value);
             },
             0xFF41 => {
-                self.ppu.stat = value;
+                const newBits = value & 0xF8;
+                const lower3Bits = self.ppu.stat & 0x7;
+                self.ppu.stat = newBits | lower3Bits;
             },
             0xFF42 => {
                 self.ppu.scy = value;
