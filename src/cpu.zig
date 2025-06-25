@@ -147,20 +147,18 @@ pub const Cpu = struct {
 
         // DMA
         if (self.bus.ppu.dmaActive) {
+            self.bus.ppu.dmaCycles += 1;
+            self.bus.ppu.dmaCountdown -= 1;
 
             // every four cycles we copy memory into OAM
-            if (self.bus.ppu.dmaCycles % 4 == 0) {
+            if (self.bus.ppu.dmaCountdown == 0) {
                 const index = self.bus.ppu.dmaCycles / 4;
                 self.bus.dmaWrite(0xFE00 + index, self.bus.dmaRead(self.bus.ppu.dmaSource + index));
+                self.bus.ppu.dmaCountdown = 4;
             }
-
-            self.bus.ppu.dmaCycles += 1;
-
-            std.debug.print("dma cycle {}\n", .{self.bus.ppu.dmaCycles});
 
             if (self.bus.ppu.dmaCycles >= 639) {
                 self.bus.ppu.dmaActive = false;
-                std.debug.print("dma unactive\n", .{});
                 self.bus.ppu.dmaCycles = 0;
             }
         }

@@ -149,6 +149,7 @@ pub const Bus = struct {
                 self.ppu.dmaSource = @as(u16, value) << 8;
                 self.ppu.dmaActive = true;
                 self.ppu.dmaCycles = 0;
+                self.ppu.dmaCountdown = 4;
             },
             0xFF47 => {
                 self.ppu.bgp = value;

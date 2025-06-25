@@ -96,7 +96,7 @@ pub fn main() !void {
             if (frameTime < FRAME_TIME_MS) {
                 const delayTime: u32 = @intFromFloat(FRAME_TIME_MS - frameTime);
                 c.SDL_Delay(delayTime);
-                // std.debug.print("slept for {d} ms", .{delayTime});
+                std.debug.print("slept for {d} ms", .{delayTime});
             }
 
             lastFrameTime = c.SDL_GetTicks();
